@@ -1,0 +1,142 @@
+	/*
+        Equation of a circle:
+		Circle (cx | cy) with radius r
+		(x | y) = intersection with the circle
+        (x - cx)^2 + (y - cy)^2 - r^2 = 0
+
+		Equation of a line:
+		c = (x  |  y) = intersection with the line
+		a = (ax | ay) = origin of the line
+		b = (bx | by) = direction of the line
+		t = scalar
+		
+		c = a + b*t
+		(x | y) = (ax | ay) + (bx | by) * t
+		-> x = ax + bx*t
+		-> y = ay + by*t
+
+		Insert the line equation into the circle equation:
+		reminder: (x - cx)^2 + (y - cy)^2 - r^2 = 0
+		(ax + bx*t - cx)^2 + (ay + by*t - cy)^2 - r^2 = 0
+
+		Bring it in the form of a quadratic equation:
+		reminder: ax^2 + bx + c = 0
+		We're gonna solve for t: at^2 + bt + c = 0
+
+		1. Step: Solve the parantheses
+		(ax + bxt - cx)^2 = (ax + bxt - cx) * (ax + bxt - cx)
+		(ax + bxt - cx) * (ax + bxt - cx)
+        = ax^2 + ax*bx*t - ax*cx + ax*bx*t + bx^2*t^2 - bx*t*cx - ax*cx - bx*t*cx + cx^2
+		= ax^2 + 2ax*bx*t - 2ax*cx + bx^2*t^2 - 2bx*t*cx + cx^2
+		
+		Solving the y paranthesis works the same way:
+        (ay + byt - cy)^2
+		= ay^2 + 2ay*by*t - 2ay*cy + by^2*t^2 - 2by*t*cy + cy^2
+
+		Insert it into the quadratic equation:
+		ax^2 + 2ax*bx*t - 2ax*cx + bx^2*t^2 - 2bx*t*cx + cx^2 + ay^2 + 2ay*by*t - 2ay*cy + by^2*t^2 - 2by*t*cy + cy^2 - r^2 = 0
+		
+		2. Step: Simplify it by bringing same terms together
+        (bx^2 + by^2)t^2 + (2ax*bx - 2bx*cx + 2ay*by - 2by*cy)t + (ax^2 - 2ax*cx + cx^2 + ay^2 - 2ay*cy + cy^2 - r^2) = 0
+		------Y------       ----------------Y----------------      -----------------------Y-------------------------
+              a                             b   					                      c
+
+		3. Step: Solve the quadratic equation using the quadratic formula
+		Check the discriminant:
+		d = b^2 - 4ac
+		if d < 0: no intersection
+		if d = 0: one intersection
+		if d > 0: two intersections
+
+		if one or two intersections exist continue
+
+		4. Step: Calculate the t values
+		Two intersections (t values):
+		t1|2 = (-b +- sqrt(d)) / 2a
+		=> t1 = (-b + sqrt(d)) / 2a
+		=> t2 = (-b - sqrt(d)) / 2a
+
+		One intersection (t value):
+		t = -b / 2a (Since the discriminant is 0)
+
+		4. Step: Get the correct t value (the one that is closer to the origin, only if you're not interested in the second hit and if you have two intersections)
+		Get both intersection points:
+		c1 = a + b*t1
+		c2 = a + b*t2
+
+		Calculate the vectors
+		v1 = c1 - a
+		v2 = c2 - a
+
+		Calculate the distance between the origin and the intersection points (pythagorean theorem):
+		d1 = v1x^2 + v1y^2
+		d2 = v2x^2 + v2y^2
+		
+		Check which one is closer to the origin:
+		if d1 < d2: t1 is the correct t value
+		if d2 < d1: t2 is the correct t value
+
+		Now you have all you need to calculate the intersection point:
+		c = a + b*t
+		The vector from the origin to the intersection point is:
+		v = c - a
+		That's your ray!
+
+		-----------------------------------------------------------------------------------------------
+		Example:
+		a = (-300 | 0)
+		b = (1 | 0)
+		r = 100
+		Circle = (0 | 0)
+		
+		insert it into the quadratic equation:
+		(bx^2 + by^2)t^2 + (2ax*bx - 2bx*cx + 2ay*by - 2by*cy)t + (ax^2 - 2ax*cx + cx^2 + ay^2 - 2ay*cy + cy^2 - r^2) = 0
+		=> (1^2 + 0^2)t^2 + (2*-300*1 - 2*1*0 + 2*0*0 - 2*0*0)t + ((-300)^2 - 2*-300*0 + 0^2 + 0^2 - 2*0*0 + 0^2 - 100^2) = 0
+		=> 1t^2 - 600t + 80000 = 0
+
+		Solve the quadratic equation:
+		discriminant = b^2 - 4ac => d = (-600)^2 - 4*1*80000
+		d = 40000
+        -> d > 0: two intersections
+
+		insert it into the quadratic formular:
+		t = (-b +- sqrt(d)) / 2*a
+		=> t1 = (600 + sqrt(d)) / 2*1
+		=> t2 = (600 - sqrt(d)) / 2*1
+
+		t1 = 400
+		t2 = 200
+
+		get the correct t value:
+		c1 = a + b*t1
+		c2 = a + b*t2
+
+		c1 = (-300 | 0) + (1 | 0)*400 = ( 100 | 0)
+		c2 = (-300 | 0) + (1 | 0)*200 = (-100 | 0)
+
+		Calculate the vectors
+		v1 = c1 - a
+		v2 = c2 - a
+
+		v1 = (100 | 0) - (-300 | 0) = (400 | 0)
+		v2 = (-100 | 0) - (-300 | 0) = (200 | 0)
+
+		Calculate the distance between the origin and the intersection points (pythagorean theorem):
+		d1 = v1x^2 + v1y^2
+		d2 = v2x^2 + v2y^2
+
+		d1 = (400)^2 + 0^2 = 160000
+		d2 = (200)^2 + 0^2 = 40000
+		
+		Check which one is closer to the origin:
+		if d1 < d2: t1 is the correct t value
+		if d2 < d1: t2 is the correct t value
+
+		d2 < d1 => t2 is the correct t value
+
+		c = a + b*t2
+		c = (-300 | 0) + (1 | 0)*200 = (-100 | 0)
+		v = c - a
+		v = (-100 | 0) - (-300 | 0) = (200 | 0)
+		That's your ray!
+	*/

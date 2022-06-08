@@ -1,5 +1,6 @@
 #include <iostream>
 #include <array>
+#include <vector>
 
 #include "SFML/Graphics.hpp"
 
@@ -9,10 +10,14 @@ public:
     sf::Vector2f m_Origin, m_Direction;
     float t = 1.f;
     bool m_IsValid = false;
+	sf::Color m_DrawColor;
 	
     Line() = default;
     Line(const sf::Vector2f& origin, const sf::Vector2f& direction)
         : m_Origin(origin), m_Direction(direction) {}
+
+	void SetLight() { m_DrawColor = sf::Color(255,255,102); }
+	void SetDark() { m_DrawColor = sf::Color(70, 70, 70); }
 
     void Draw(sf::RenderWindow& window)
     {
@@ -23,8 +28,8 @@ public:
 		float y = m_Origin.y + m_Direction.y * t;
 		sf::Vertex line[] =
 		{
-			sf::Vertex(sf::Vector2f(m_Origin.x, m_Origin.y), sf::Color::Green),
-			sf::Vertex(sf::Vector2f(x, y), sf::Color::Green)
+			sf::Vertex(sf::Vector2f(m_Origin.x, m_Origin.y), m_DrawColor),
+			sf::Vertex(sf::Vector2f(x, y), m_DrawColor)
 		};
         window.draw(line, 2, sf::Lines);
     }
@@ -34,7 +39,7 @@ public:
 struct CoordinateTransformer 
 {
 public:
-    sf::Vector2f m_Origin; // null point
+    sf::Vector2f m_Origin; // 0-0
 
     CoordinateTransformer(const sf::RenderWindow& window)
     {
@@ -48,13 +53,23 @@ public:
 
     sf::Vector2f Transform(const sf::Vector2f& coord) const
     {
-		return coord + m_Origin;
+		return Transform(coord.x, coord.y);
+    }
+
+    sf::Vector2f Normalize(float x, float y) const
+    {
+		return sf::Vector2f(x, y) - m_Origin;
+    }
+
+    sf::Vector2f Normalize(const sf::Vector2f& coord) const
+    {
+		return Normalize(coord.x, coord.y);
     }
 };
 
 
 
-float GetCorrectTValue(const sf::Vector2f& origin, const sf::Vector2f& direction, float t1, float t2)
+float GetCorrectTValue(const sf::Vector2f& origin, const sf::Vector2f& direction, float t1, float t2, bool getShorter)
 {
     const sf::Vector2f point1 = origin + direction * t1;
 	const sf::Vector2f point2 = origin + direction * t2;
@@ -65,107 +80,88 @@ float GetCorrectTValue(const sf::Vector2f& origin, const sf::Vector2f& direction
 	const float length1 = vec1.x * vec1.x + vec1.y * vec1.y;
 	const float length2 = vec2.x * vec2.x + vec2.y * vec2.y;
 
-	return length1 < length2 ? t1 : t2;
+	if(length1 < length2)
+	{
+		if(getShorter)
+			return t1;
+		else
+			return t2;
+	}
+	else
+	{
+		if(getShorter)
+			return t2;
+		else
+			return t1;
+	}
+
+	//return length1 < length2 ? t1 : t2;
+	//return length1 < length2 ? t2 : t1;
 }
 
 
-Line CalculateRay(const Line& line, float radius, const CoordinateTransformer& tf)
+std::pair<Line, Line> CalculateRays(const Line& line, float radius, const CoordinateTransformer& tf, const sf::Vector2f& circlePos)
 {
-	Line result;
+	Line light, shadow;
 
     const float a = line.m_Direction.x * line.m_Direction.x + line.m_Direction.y * line.m_Direction.y;
-	const float b = 2.f * line.m_Origin.x * line.m_Direction.x + 2.f * line.m_Origin.y * line.m_Direction.y;
-    const float c = line.m_Origin.x * line.m_Origin.x + line.m_Origin.y * line.m_Origin.y - radius * radius;
+	const float b = 2.f * line.m_Origin.x * line.m_Direction.x - 2.f * line.m_Direction.x * circlePos.x + 2.f * line.m_Origin.y * line.m_Direction.y - 2.f * line.m_Direction.y * circlePos.y;
+    const float c = line.m_Origin.x * line.m_Origin.x - 2.f * line.m_Origin.x * circlePos.x + circlePos.x * circlePos.x + line.m_Origin.y * line.m_Origin.y - 2.f * line.m_Origin.y * circlePos.y + circlePos.y * circlePos.y - radius * radius;
 
-	const float determinant = b * b - 4.f * a * c;
-    if (determinant < 0)
-        return Line();
-    else if (determinant == 0)
-        result.t = -b / (2.f * a);
+	const float discriminant = b * b - 4.f * a * c;
+    if (discriminant < 0)
+		return { Line(), Line() };
+    else if (discriminant == 0)
+    {
+		light.t = -b / (2.f * a);
+        shadow.t = light.t;
+    }
     else
     {
-        const float t1 = (-b + sqrt(determinant)) / (2.f * a);
-	    const float t2 = (-b - sqrt(determinant)) / (2.f * a);
-        result.t = GetCorrectTValue(line.m_Origin, line.m_Direction, t1, t2);
+        const float t1 = (-b + sqrt(discriminant)) / (2.f * a);
+	    const float t2 = (-b - sqrt(discriminant)) / (2.f * a);
+		light.t = GetCorrectTValue(line.m_Origin, line.m_Direction, t1, t2, true);
+		shadow.t = GetCorrectTValue(line.m_Origin, line.m_Direction, t1, t2, false);
     }
 
-    result.m_Direction = line.m_Direction;
-	result.m_Origin = tf.Transform(line.m_Origin);
-    result.m_IsValid = true;
-	return result;
+	light.m_Direction = line.m_Direction;
+	light.m_Origin = tf.Transform(line.m_Origin);
+	light.m_IsValid = true;
+	light.SetLight();
+
+	shadow.m_Direction = line.m_Direction;
+	shadow.m_Origin = tf.Transform(line.m_Origin + shadow.t * line.m_Direction);
+	shadow.t = shadow.t * 10000;
+	shadow.m_IsValid = true;
+	shadow.SetDark();
+	return { light, shadow };
 }
 
 
 int main()
 {
     sf::RenderWindow window(sf::VideoMode(1000, 750), "Rays");
-    window.setFramerateLimit(10);
+    window.setFramerateLimit(60);
 
     CoordinateTransformer tf(window);
 
-    sf::CircleShape circle(100.f);
+    sf::CircleShape circle(100.f, 70);
     circle.setPosition(tf.Transform(0 - circle.getRadius(), 0 - circle.getRadius()));
     circle.setFillColor(sf::Color::White);
 
-    //Line line({-150.f, 0.f}, { 1.f,0.3f });
-	//line = CalculateRay(line, 100.f, window);
-
-    float p1 = 350.f;
-    float p2 = 0.f;
-    float dir1 = 0.29f;
+    float p1 = -500.f;
+    float p2 = -375.f;
+	float dir1 = 0.f;
     float dir2 = 1.f;
 
-	std::array<Line, 236> rays;
-    float offset = 0.01f;
+	std::vector<Line> rays;
+    float offset = 0.001f;
     float YAngle = dir1 *-1;
 	float XAngle = dir2;
-    size_t valid = 0;
-    float XPos = p1*-1;
+    float XPos = p1;
 	float YPos = p2;
     float lastValidAngle = XAngle;
-    for (size_t i = 0; i < rays.size(); ++i)
-    {
-        if (i == rays.size() / 4)
-        {
-			YAngle = dir1 * -1;
-			XAngle = dir2;
-			XPos = p1;
-			YPos = p2*-1;
-        }
-        else if (i == rays.size() / 2)
-        {
-            YAngle = dir2;
-            XAngle = dir1 * -1;
-            XPos = p2;
-            YPos = p1;
-        }
-        else if (i == (rays.size() / 4)*3)
-        {
-            YAngle = dir2;
-            XAngle = dir1 * -1;
-            XPos = p2*-1;
-            YPos = p1*-1;
-        }
-
-        Line line({ XPos, YPos }, { XAngle, YAngle });
-        rays[i] = CalculateRay(line, 100.f, tf);
-        if (rays[i].m_IsValid)
-        {
-            lastValidAngle = XAngle;
-            ++valid;
-        }
-        if (i < rays.size() / 2)
-        {
-            YAngle += offset;
-        }
-        else
-		{
-			XAngle += offset;
-		}
-    }
 	
-    std::cout << "Valid rays: " << valid << std::endl;
-	std::cout << "Last valid angle: " << lastValidAngle << std::endl;
     while (window.isOpen())
     {
         sf::Event event;
@@ -173,44 +169,51 @@ int main()
         {
             if (event.type == sf::Event::Closed)
                 window.close();
+            else if(event.type == sf::Event::Resized)
+			{
+                sf::FloatRect visibleArea(0, 0, static_cast<float>(event.size.width), static_cast<float>(event.size.height));
+                window.setView(sf::View(visibleArea));
+			}
         }
+		
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Left) && window.hasFocus())
+        {
+			const sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+            circle.setPosition({ static_cast<float>(mousePos.x) - circle.getRadius(), static_cast<float>(mousePos.y) - circle.getRadius()});
+        }
+        
+        for(size_t i = 0; i < 10000; ++i)
+        {
+            if (i == 3000)
+                offset = 0.01f;
+            else if (i == 6000)
+                offset = 0.1f;
+            else if (i == 8000)
+                offset = 1.f;
+
+            Line line({ XPos, YPos }, { XAngle, YAngle });
+			std::pair<Line, Line> lines = CalculateRays(line, circle.getRadius(), tf, tf.Normalize(circle.getPosition().x + circle.getRadius(), circle.getPosition().y + circle.getRadius()));
+			if (lines.first.m_IsValid)
+			{
+				lastValidAngle = YAngle;
+				rays.push_back(std::move(lines.first));
+				rays.push_back(std::move(lines.second));
+			}
+			YAngle += offset;
+        }
+        std::cout << "Valid rays: " << rays.size() << " | Last valid angle: " << lastValidAngle << '\r';
+		YAngle = dir1 *-1;
+		offset = 0.001f;
 
         window.clear(sf::Color(105,105,105,255));
         window.draw(circle);
-        //line.Draw(window);
         for (size_t i = 0; i < rays.size(); ++i)
         {
-            rays[i].Draw(window);
+            rays.at(i).Draw(window);
         }
         window.display();
+		rays.clear();
     }
 
     return 0;
 }
-
-
-
-//sf::Vector2f GetIntersection(Line line1, Line line2)
-//{
-//	sf::Vector2f intersection;
-//	float a1 = line1.m_Direction.y;
-//	float b1 = -line1.m_Direction.x;
-//	float c1 = line1.m_Origin.x * line1.m_Direction.y - line1.m_Origin.y * line1.m_Direction.x;
-//
-//	float a2 = line2.m_Direction.y;
-//	float b2 = -line2.m_Direction.x;
-//	float c2 = line2.m_Origin.x * line2.m_Direction.y - line2.m_Origin.y * line2.m_Direction.x;
-//
-//	float det = a1 * b2 - a2 * b1;
-//	if (det != 0)
-//	{
-//		intersection.x = (b2 * c1 - b1 * c2) / det;
-//		intersection.y = (a1 * c2 - a2 * c1) / det;
-//	}
-//	else
-//	{
-//		intersection.x = 0;
-//		intersection.y = 0;
-//	}
-//	return intersection;
-//}
