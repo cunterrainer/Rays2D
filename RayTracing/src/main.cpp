@@ -1,7 +1,6 @@
 #include <iostream>
 #include <array>
-#define _USE_MATH_DEFINES
-#include <math.h>
+#include <vector>
 
 #include "SFML/Graphics.hpp"
 
@@ -11,10 +10,14 @@ public:
     sf::Vector2f m_Origin, m_Direction;
     float t = 1.f;
     bool m_IsValid = false;
+	sf::Color m_DrawColor;
 	
     Line() = default;
     Line(const sf::Vector2f& origin, const sf::Vector2f& direction)
         : m_Origin(origin), m_Direction(direction) {}
+
+	void SetLight() { m_DrawColor = sf::Color(255,255,102); }
+	void SetDark() { m_DrawColor = sf::Color(70, 70, 70); }
 
     void Draw(sf::RenderWindow& window)
     {
@@ -25,8 +28,8 @@ public:
 		float y = m_Origin.y + m_Direction.y * t;
 		sf::Vertex line[] =
 		{
-			sf::Vertex(sf::Vector2f(m_Origin.x, m_Origin.y), sf::Color::Green),
-			sf::Vertex(sf::Vector2f(x, y), sf::Color::Green)
+			sf::Vertex(sf::Vector2f(m_Origin.x, m_Origin.y), m_DrawColor),
+			sf::Vertex(sf::Vector2f(x, y), m_DrawColor)
 		};
         window.draw(line, 2, sf::Lines);
     }
@@ -66,9 +69,8 @@ public:
 
 
 
-float GetCorrectTValue(const sf::Vector2f& origin, const sf::Vector2f& direction, float t1, float t2)
+float GetCorrectTValue(const sf::Vector2f& origin, const sf::Vector2f& direction, float t1, float t2, bool getShorter)
 {
-	// using pythagorean theorem to determine the length
     const sf::Vector2f point1 = origin + direction * t1;
 	const sf::Vector2f point2 = origin + direction * t2;
 
@@ -78,176 +80,61 @@ float GetCorrectTValue(const sf::Vector2f& origin, const sf::Vector2f& direction
 	const float length1 = vec1.x * vec1.x + vec1.y * vec1.y;
 	const float length2 = vec2.x * vec2.x + vec2.y * vec2.y;
 
-	return length1 < length2 ? t1 : t2;
+	if(length1 < length2)
+	{
+		if(getShorter)
+			return t1;
+		else
+			return t2;
+	}
+	else
+	{
+		if(getShorter)
+			return t2;
+		else
+			return t1;
+	}
+
+	//return length1 < length2 ? t1 : t2;
+	//return length1 < length2 ? t2 : t1;
 }
 
 
-Line CalculateRay(const Line& line, float radius, const CoordinateTransformer& tf, const sf::Vector2f& circlePos)
+std::pair<Line, Line> CalculateRays(const Line& line, float radius, const CoordinateTransformer& tf, const sf::Vector2f& circlePos)
 {
-	/*
-        Equation of a circle:
-		Circle (cx | cy) with radius r
-		(x | y) = intersection with the circle
-        (x - cx)^2 + (y - cy)^2 - r^2 = 0
-
-		Equation of a line:
-		c = (x  |  y) = intersection with the line
-		a = (ax | ay) = origin of the line
-		b = (bx | by) = direction of the line
-		t = scalar
-		
-		c = a + b*t
-		(x | y) = (ax | ay) + (bx | by) * t
-		-> x = ax + bx*t
-		-> y = ay + by*t
-
-		Insert the line equation into the circle equation:
-		reminder: (x - cx)^2 + (y - cy)^2 - r^2 = 0
-		(ax + bx*t - cx)^2 + (ay + by*t - cy)^2 - r^2 = 0
-
-		Bring it in the form of a quadratic equation:
-		reminder: ax^2 + bx + c = 0
-		We're gonna solve for t: at^2 + bt + c = 0
-
-		1. Step: Solve the parantheses
-		(ax + bxt - cx)^2 = (ax + bxt - cx) * (ax + bxt - cx)
-		(ax + bxt - cx) * (ax + bxt - cx)
-        = ax^2 + ax*bx*t - ax*cx + ax*bx*t + bx^2*t^2 - bx*t*cx - ax*cx - bx*t*cx + cx^2
-		= ax^2 + 2ax*bx*t - 2ax*cx + bx^2*t^2 - 2bx*t*cx + cx^2
-		
-		Solving the y paranthesis works the same way:
-        (ay + byt - cy)^2
-		= ay^2 + 2ay*by*t - 2ay*cy + by^2*t^2 - 2by*t*cy + cy^2
-
-		Insert it into the quadratic equation:
-		ax^2 + 2ax*bx*t - 2ax*cx + bx^2*t^2 - 2bx*t*cx + cx^2 + ay^2 + 2ay*by*t - 2ay*cy + by^2*t^2 - 2by*t*cy + cy^2 - r^2 = 0
-		
-		2. Step: Simplify it by bringing same terms together
-        (bx^2 + by^2)t^2 + (2ax*bx - 2bx*cx + 2ay*by - 2by*cy)t + (ax^2 - 2ax*cx + cx^2 + ay^2 - 2ay*cy + cy^2 - r^2) = 0
-		------Y------       ----------------Y----------------      -----------------------Y-------------------------
-              a                             b   					                      c
-
-		3. Step: Solve the quadratic equation using the quadratic formula
-		Check the discriminant:
-		d = b^2 - 4ac
-		if d < 0: no intersection
-		if d = 0: one intersection
-		if d > 0: two intersections
-
-		if one or two intersections exist continue
-
-		4. Step: Calculate the t values
-		Two intersections (t values):
-		t1|2 = (-b +- sqrt(d)) / 2a
-		=> t1 = (-b + sqrt(d)) / 2a
-		=> t2 = (-b - sqrt(d)) / 2a
-
-		One intersection (t value):
-		t = -b / 2a (Since the discriminant is 0)
-
-		4. Step: Get the correct t value (the one that is closer to the origin, only if you're not interested in the second hit and if you have two intersections)
-		Get both intersection points:
-		c1 = a + b*t1
-		c2 = a + b*t2
-
-		Calculate the vectors
-		v1 = c1 - a
-		v2 = c2 - a
-
-		Calculate the distance between the origin and the intersection points (pythagorean theorem):
-		d1 = v1x^2 + v1y^2
-		d2 = v2x^2 + v2y^2
-		
-		Check which one is closer to the origin:
-		if d1 < d2: t1 is the correct t value
-		if d2 < d1: t2 is the correct t value
-
-		Now you have all you need to calculate the intersection point:
-		c = a + b*t
-		The vector from the origin to the intersection point is:
-		v = c - a
-		That's your ray!
-
-		-----------------------------------------------------------------------------------------------
-		Example:
-		a = (-300 | 0)
-		b = (1 | 0)
-		r = 100
-		Circle = (0 | 0)
-		
-		insert it into the quadratic equation:
-		(bx^2 + by^2)t^2 + (2ax*bx - 2bx*cx + 2ay*by - 2by*cy)t + (ax^2 - 2ax*cx + cx^2 + ay^2 - 2ay*cy + cy^2 - r^2) = 0
-		=> (1^2 + 0^2)t^2 + (2*-300*1 - 2*1*0 + 2*0*0 - 2*0*0)t + ((-300)^2 - 2*-300*0 + 0^2 + 0^2 - 2*0*0 + 0^2 - 100^2) = 0
-		=> 1t^2 - 600t + 80000 = 0
-
-		Solve the quadratic equation:
-		discriminant = b^2 - 4ac => d = (-600)^2 - 4*1*80000
-		d = 40000
-        -> d > 0: two intersections
-
-		insert it into the quadratic formular:
-		t = (-b +- sqrt(d)) / 2*a
-		=> t1 = (600 + sqrt(d)) / 2*1
-		=> t2 = (600 - sqrt(d)) / 2*1
-
-		t1 = 400
-		t2 = 200
-
-		get the correct t value:
-		c1 = a + b*t1
-		c2 = a + b*t2
-
-		c1 = (-300 | 0) + (1 | 0)*400 = ( 100 | 0)
-		c2 = (-300 | 0) + (1 | 0)*200 = (-100 | 0)
-
-		Calculate the vectors
-		v1 = c1 - a
-		v2 = c2 - a
-
-		v1 = (100 | 0) - (-300 | 0) = (400 | 0)
-		v2 = (-100 | 0) - (-300 | 0) = (200 | 0)
-
-		Calculate the distance between the origin and the intersection points (pythagorean theorem):
-		d1 = v1x^2 + v1y^2
-		d2 = v2x^2 + v2y^2
-
-		d1 = (400)^2 + 0^2 = 160000
-		d2 = (200)^2 + 0^2 = 40000
-		
-		Check which one is closer to the origin:
-		if d1 < d2: t1 is the correct t value
-		if d2 < d1: t2 is the correct t value
-
-		d2 < d1 => t2 is the correct t value
-
-		c = a + b*t2
-		c = (-300 | 0) + (1 | 0)*200 = (-100 | 0)
-		v = c - a
-		v = (-100 | 0) - (-300 | 0) = (200 | 0)
-		That's your ray!
-	*/
-	Line result;
+	Line light, shadow;
 
     const float a = line.m_Direction.x * line.m_Direction.x + line.m_Direction.y * line.m_Direction.y;
-	const float b = 2.f * line.m_Origin.x * line.m_Direction.x - 2 * line.m_Direction.x * circlePos.x + 2.f * line.m_Origin.y * line.m_Direction.y - 2.f * line.m_Direction.y * circlePos.y;
+	const float b = 2.f * line.m_Origin.x * line.m_Direction.x - 2.f * line.m_Direction.x * circlePos.x + 2.f * line.m_Origin.y * line.m_Direction.y - 2.f * line.m_Direction.y * circlePos.y;
     const float c = line.m_Origin.x * line.m_Origin.x - 2.f * line.m_Origin.x * circlePos.x + circlePos.x * circlePos.x + line.m_Origin.y * line.m_Origin.y - 2.f * line.m_Origin.y * circlePos.y + circlePos.y * circlePos.y - radius * radius;
 
 	const float discriminant = b * b - 4.f * a * c;
     if (discriminant < 0)
-        return Line();
+		return { Line(), Line() };
     else if (discriminant == 0)
-        result.t = -b / (2.f * a);
+    {
+		light.t = -b / (2.f * a);
+        shadow.t = light.t;
+    }
     else
     {
         const float t1 = (-b + sqrt(discriminant)) / (2.f * a);
 	    const float t2 = (-b - sqrt(discriminant)) / (2.f * a);
-        result.t = GetCorrectTValue(line.m_Origin, line.m_Direction, t1, t2);
+		light.t = GetCorrectTValue(line.m_Origin, line.m_Direction, t1, t2, true);
+		shadow.t = GetCorrectTValue(line.m_Origin, line.m_Direction, t1, t2, false);
     }
 
-    result.m_Direction = line.m_Direction;
-	result.m_Origin = tf.Transform(line.m_Origin);
-    result.m_IsValid = true;
-	return result;
+	light.m_Direction = line.m_Direction;
+	light.m_Origin = tf.Transform(line.m_Origin);
+	light.m_IsValid = true;
+	light.SetLight();
+
+	shadow.m_Direction = line.m_Direction;
+	shadow.m_Origin = tf.Transform(line.m_Origin + shadow.t * line.m_Direction);
+	shadow.t = shadow.t * 10000;
+	shadow.m_IsValid = true;
+	shadow.SetDark();
+	return { light, shadow };
 }
 
 
@@ -262,18 +149,16 @@ int main()
     circle.setPosition(tf.Transform(0 - circle.getRadius(), 0 - circle.getRadius()));
     circle.setFillColor(sf::Color::White);
 
-    float p1 = 350.f;
-    float p2 = 0.f;
-    //float dir1 = 0.29f;
+    float p1 = -500.f;
+    float p2 = -375.f;
 	float dir1 = 0.f;
     float dir2 = 1.f;
 
-	std::array<Line, 10000>* rays = new std::array<Line, 10000>();
-    float offset = 0.01f;
+	std::vector<Line> rays;
+    float offset = 0.001f;
     float YAngle = dir1 *-1;
 	float XAngle = dir2;
-    size_t valid = 0;
-    float XPos = p1*-1;
+    float XPos = p1;
 	float YPos = p2;
     float lastValidAngle = XAngle;
 	
@@ -284,73 +169,51 @@ int main()
         {
             if (event.type == sf::Event::Closed)
                 window.close();
+            else if(event.type == sf::Event::Resized)
+			{
+                sf::FloatRect visibleArea(0, 0, static_cast<float>(event.size.width), static_cast<float>(event.size.height));
+                window.setView(sf::View(visibleArea));
+			}
         }
-
+		
         if (sf::Mouse::isButtonPressed(sf::Mouse::Left) && window.hasFocus())
         {
 			const sf::Vector2i mousePos = sf::Mouse::getPosition(window);
-			circle.setPosition({ (float)mousePos.x - circle.getRadius(), (float)mousePos.y - circle.getRadius() });
+            circle.setPosition({ static_cast<float>(mousePos.x) - circle.getRadius(), static_cast<float>(mousePos.y) - circle.getRadius()});
         }
-
-        for (size_t i = 0; i < rays->size(); ++i)
+        
+        for(size_t i = 0; i < 10000; ++i)
         {
-            if (i == 0)
-            {
-                YAngle = dir1 * -1;
-                XAngle = dir2;
-                XPos = p1 * -1;
-                YPos = p2;
-            }
-            else if (i == rays->size() / 4)
-            {
-                YAngle = dir1 * -1;
-                XAngle = dir2;
-                XPos = p1;
-                YPos = p2 * -1;
-            }
-            else if (i == rays->size() / 2)
-            {
-                YAngle = dir2;
-                XAngle = dir1 * -1;
-                XPos = p2;
-                YPos = p1;
-            }
-            else if (i == (rays->size() / 4) * 3)
-            {
-                YAngle = dir2;
-                XAngle = dir1 * -1;
-                XPos = p2 * -1;
-                YPos = p1 * -1;
-            }
+            if (i == 3000)
+                offset = 0.01f;
+            else if (i == 6000)
+                offset = 0.1f;
+            else if (i == 8000)
+                offset = 1.f;
 
             Line line({ XPos, YPos }, { XAngle, YAngle });
-            rays->at(i) = CalculateRay(line, circle.getRadius(), tf, tf.Normalize(circle.getPosition().x + circle.getRadius(), circle.getPosition().y + circle.getRadius()));
-            if (rays->at(i).m_IsValid)
-            {
-                lastValidAngle = XAngle;
-                ++valid;
-            }
-            if (i < rays->size() / 2)
-            {
-                YAngle += offset;
-            }
-            else
-            {
-                XAngle += offset;
-            }
+			std::pair<Line, Line> lines = CalculateRays(line, circle.getRadius(), tf, tf.Normalize(circle.getPosition().x + circle.getRadius(), circle.getPosition().y + circle.getRadius()));
+			if (lines.first.m_IsValid)
+			{
+				lastValidAngle = YAngle;
+				rays.push_back(std::move(lines.first));
+				rays.push_back(std::move(lines.second));
+			}
+			YAngle += offset;
         }
-        std::cout << "Valid rays: " << valid << " | Last vali angle: " << lastValidAngle << '\r';
-		valid = 0;
+        std::cout << "Valid rays: " << rays.size() << " | Last valid angle: " << lastValidAngle << '\r';
+		YAngle = dir1 *-1;
+		offset = 0.001f;
 
         window.clear(sf::Color(105,105,105,255));
         window.draw(circle);
-        for (size_t i = 0; i < rays->size(); ++i)
+        for (size_t i = 0; i < rays.size(); ++i)
         {
-            rays->at(i).Draw(window);
+            rays.at(i).Draw(window);
         }
         window.display();
+		rays.clear();
     }
-	delete rays;
 
     return 0;
 }
