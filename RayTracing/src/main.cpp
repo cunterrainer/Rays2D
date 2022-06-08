@@ -178,7 +178,7 @@ Line CalculateRay(const Line& line, float radius, const CoordinateTransformer& t
 		insert it into the quadratic equation:
 		(bx^2 + by^2)t^2 + (2ax*bx - 2bx*cx + 2ay*by - 2by*cy)t + (ax^2 - 2ax*cx + cx^2 + ay^2 - 2ay*cy + cy^2 - r^2) = 0
 		=> (1^2 + 0^2)t^2 + (2*-300*1 - 2*1*0 + 2*0*0 - 2*0*0)t + ((-300)^2 - 2*-300*0 + 0^2 + 0^2 - 2*0*0 + 0^2 - 100^2) = 0
-		=>  1t^2 - 600t + 80000 = 0
+		=> 1t^2 - 600t + 80000 = 0
 
 		Solve the quadratic equation:
 		discriminant = b^2 - 4ac => d = (-600)^2 - 4*1*80000
@@ -225,7 +225,7 @@ Line CalculateRay(const Line& line, float radius, const CoordinateTransformer& t
 		v = c - a
 		v = (-100 | 0) - (-300 | 0) = (200 | 0)
 		That's your ray!
-    */
+	*/
 	Line result;
 
     const float a = line.m_Direction.x * line.m_Direction.x + line.m_Direction.y * line.m_Direction.y;
@@ -264,10 +264,11 @@ int main()
 
     float p1 = 350.f;
     float p2 = 0.f;
-    float dir1 = 0.29f;
+    //float dir1 = 0.29f;
+	float dir1 = 0.f;
     float dir2 = 1.f;
 
-	std::array<Line, 400> rays;
+	std::array<Line, 10000>* rays = new std::array<Line, 10000>();
     float offset = 0.01f;
     float YAngle = dir1 *-1;
 	float XAngle = dir2;
@@ -291,7 +292,7 @@ int main()
 			circle.setPosition({ (float)mousePos.x - circle.getRadius(), (float)mousePos.y - circle.getRadius() });
         }
 
-        for (size_t i = 0; i < rays.size(); ++i)
+        for (size_t i = 0; i < rays->size(); ++i)
         {
             if (i == 0)
             {
@@ -300,21 +301,21 @@ int main()
                 XPos = p1 * -1;
                 YPos = p2;
             }
-            else if (i == rays.size() / 4)
+            else if (i == rays->size() / 4)
             {
                 YAngle = dir1 * -1;
                 XAngle = dir2;
                 XPos = p1;
                 YPos = p2 * -1;
             }
-            else if (i == rays.size() / 2)
+            else if (i == rays->size() / 2)
             {
                 YAngle = dir2;
                 XAngle = dir1 * -1;
                 XPos = p2;
                 YPos = p1;
             }
-            else if (i == (rays.size() / 4) * 3)
+            else if (i == (rays->size() / 4) * 3)
             {
                 YAngle = dir2;
                 XAngle = dir1 * -1;
@@ -323,13 +324,13 @@ int main()
             }
 
             Line line({ XPos, YPos }, { XAngle, YAngle });
-            rays[i] = CalculateRay(line, circle.getRadius(), tf, tf.Normalize(circle.getPosition().x + circle.getRadius(), circle.getPosition().y + circle.getRadius()));
-            if (rays[i].m_IsValid)
+            rays->at(i) = CalculateRay(line, circle.getRadius(), tf, tf.Normalize(circle.getPosition().x + circle.getRadius(), circle.getPosition().y + circle.getRadius()));
+            if (rays->at(i).m_IsValid)
             {
                 lastValidAngle = XAngle;
                 ++valid;
             }
-            if (i < rays.size() / 2)
+            if (i < rays->size() / 2)
             {
                 YAngle += offset;
             }
@@ -343,39 +344,13 @@ int main()
 
         window.clear(sf::Color(105,105,105,255));
         window.draw(circle);
-        for (size_t i = 0; i < rays.size(); ++i)
+        for (size_t i = 0; i < rays->size(); ++i)
         {
-            rays[i].Draw(window);
+            rays->at(i).Draw(window);
         }
         window.display();
     }
+	delete rays;
 
     return 0;
 }
-
-
-
-//sf::Vector2f GetIntersection(Line line1, Line line2)
-//{
-//	sf::Vector2f intersection;
-//	float a1 = line1.m_Direction.y;
-//	float b1 = -line1.m_Direction.x;
-//	float c1 = line1.m_Origin.x * line1.m_Direction.y - line1.m_Origin.y * line1.m_Direction.x;
-//
-//	float a2 = line2.m_Direction.y;
-//	float b2 = -line2.m_Direction.x;
-//	float c2 = line2.m_Origin.x * line2.m_Direction.y - line2.m_Origin.y * line2.m_Direction.x;
-//
-//	float det = a1 * b2 - a2 * b1;
-//	if (det != 0)
-//	{
-//		intersection.x = (b2 * c1 - b1 * c2) / det;
-//		intersection.y = (a1 * c2 - a2 * c1) / det;
-//	}
-//	else
-//	{
-//		intersection.x = 0;
-//		intersection.y = 0;
-//	}
-//	return intersection;
-//}

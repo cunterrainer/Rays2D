@@ -180,12 +180,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="src\SudokuBoard.h" />
-    <ClInclude Include="src\SudokuQuad.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="src\SudokuBoard.cpp" />
-    <ClCompile Include="src\SudokuQuad.cpp" />
+    <ClCompile Include="src\MathBehindSphereTracing" />
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
