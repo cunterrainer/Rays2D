@@ -34,7 +34,7 @@ public:
 struct CoordinateTransformer 
 {
 public:
-    sf::Vector2f m_Origin; // null point
+    sf::Vector2f m_Origin; // 0-0
 
     CoordinateTransformer(const sf::RenderWindow& window)
     {
@@ -49,6 +49,16 @@ public:
     sf::Vector2f Transform(const sf::Vector2f& coord) const
     {
 		return coord + m_Origin;
+    }
+
+    sf::Vector2f Normalize(float x, float y) const
+    {
+		return sf::Vector2f(x, y) - m_Origin;
+    }
+
+    sf::Vector2f Normalize(const sf::Vector2f& coord) const
+    {
+        return coord - m_Origin;
     }
 };
 
@@ -69,13 +79,15 @@ float GetCorrectTValue(const sf::Vector2f& origin, const sf::Vector2f& direction
 }
 
 
-Line CalculateRay(const Line& line, float radius, const CoordinateTransformer& tf)
+Line CalculateRay(const Line& line, float radius, const CoordinateTransformer& tf, const sf::Vector2f& circlePos)
 {
 	Line result;
 
     const float a = line.m_Direction.x * line.m_Direction.x + line.m_Direction.y * line.m_Direction.y;
-	const float b = 2.f * line.m_Origin.x * line.m_Direction.x + 2.f * line.m_Origin.y * line.m_Direction.y;
-    const float c = line.m_Origin.x * line.m_Origin.x + line.m_Origin.y * line.m_Origin.y - radius * radius;
+	//const float b = 2.f * line.m_Origin.x * line.m_Direction.x + 2.f * line.m_Origin.y * line.m_Direction.y;
+	const float b = 2.f * line.m_Origin.x * line.m_Direction.x - 2 * line.m_Direction.x * circlePos.x + 2.f * line.m_Origin.y * line.m_Direction.y - 2.f * line.m_Direction.y * circlePos.y;
+    //const float c = line.m_Origin.x * line.m_Origin.x + line.m_Origin.y * line.m_Origin.y - radius * radius;
+    const float c = line.m_Origin.x * line.m_Origin.x - 2.f * line.m_Origin.x * circlePos.x + circlePos.x * circlePos.x + line.m_Origin.y * line.m_Origin.y - 2.f * line.m_Origin.y * circlePos.y + circlePos.y * circlePos.y - radius * radius;
 
 	const float determinant = b * b - 4.f * a * c;
     if (determinant < 0)
@@ -99,7 +111,7 @@ Line CalculateRay(const Line& line, float radius, const CoordinateTransformer& t
 int main()
 {
     sf::RenderWindow window(sf::VideoMode(1000, 750), "Rays");
-    window.setFramerateLimit(10);
+    window.setFramerateLimit(60);
 
     CoordinateTransformer tf(window);
 
@@ -107,15 +119,12 @@ int main()
     circle.setPosition(tf.Transform(0 - circle.getRadius(), 0 - circle.getRadius()));
     circle.setFillColor(sf::Color::White);
 
-    //Line line({-150.f, 0.f}, { 1.f,0.3f });
-	//line = CalculateRay(line, 100.f, window);
-
     float p1 = 350.f;
     float p2 = 0.f;
     float dir1 = 0.29f;
     float dir2 = 1.f;
 
-	std::array<Line, 236> rays;
+	std::array<Line, 400> rays;
     float offset = 0.01f;
     float YAngle = dir1 *-1;
 	float XAngle = dir2;
@@ -123,49 +132,9 @@ int main()
     float XPos = p1*-1;
 	float YPos = p2;
     float lastValidAngle = XAngle;
-    for (size_t i = 0; i < rays.size(); ++i)
-    {
-        if (i == rays.size() / 4)
-        {
-			YAngle = dir1 * -1;
-			XAngle = dir2;
-			XPos = p1;
-			YPos = p2*-1;
-        }
-        else if (i == rays.size() / 2)
-        {
-            YAngle = dir2;
-            XAngle = dir1 * -1;
-            XPos = p2;
-            YPos = p1;
-        }
-        else if (i == (rays.size() / 4)*3)
-        {
-            YAngle = dir2;
-            XAngle = dir1 * -1;
-            XPos = p2*-1;
-            YPos = p1*-1;
-        }
-
-        Line line({ XPos, YPos }, { XAngle, YAngle });
-        rays[i] = CalculateRay(line, 100.f, tf);
-        if (rays[i].m_IsValid)
-        {
-            lastValidAngle = XAngle;
-            ++valid;
-        }
-        if (i < rays.size() / 2)
-        {
-            YAngle += offset;
-        }
-        else
-		{
-			XAngle += offset;
-		}
-    }
 	
-    std::cout << "Valid rays: " << valid << std::endl;
-	std::cout << "Last valid angle: " << lastValidAngle << std::endl;
+    //std::cout << "Valid rays: " << valid << " | Last vali angle: " << lastValidAngle << std::endl;
+	//std::cout << "Last valid angle: " << lastValidAngle << std::endl;
     while (window.isOpen())
     {
         sf::Event event;
@@ -175,9 +144,64 @@ int main()
                 window.close();
         }
 
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Left) && window.hasFocus())
+        {
+			const sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+			circle.setPosition({ (float)mousePos.x - circle.getRadius(), (float)mousePos.y - circle.getRadius() });
+        }
+
+        for (size_t i = 0; i < rays.size(); ++i)
+        {
+            if (i == 0)
+            {
+                YAngle = dir1 * -1;
+                XAngle = dir2;
+                XPos = p1 * -1;
+                YPos = p2;
+            }
+            else if (i == rays.size() / 4)
+            {
+                YAngle = dir1 * -1;
+                XAngle = dir2;
+                XPos = p1;
+                YPos = p2 * -1;
+            }
+            else if (i == rays.size() / 2)
+            {
+                YAngle = dir2;
+                XAngle = dir1 * -1;
+                XPos = p2;
+                YPos = p1;
+            }
+            else if (i == (rays.size() / 4) * 3)
+            {
+                YAngle = dir2;
+                XAngle = dir1 * -1;
+                XPos = p2 * -1;
+                YPos = p1 * -1;
+            }
+
+            Line line({ XPos, YPos }, { XAngle, YAngle });
+            rays[i] = CalculateRay(line, circle.getRadius(), tf, tf.Normalize(circle.getPosition().x + circle.getRadius(), circle.getPosition().y + circle.getRadius()));
+            if (rays[i].m_IsValid)
+            {
+                lastValidAngle = XAngle;
+                ++valid;
+            }
+            if (i < rays.size() / 2)
+            {
+                YAngle += offset;
+            }
+            else
+            {
+                XAngle += offset;
+            }
+        }
+        std::cout << "Valid rays: " << valid << " | Last vali angle: " << lastValidAngle << '\r';
+		valid = 0;
+
         window.clear(sf::Color(105,105,105,255));
         window.draw(circle);
-        //line.Draw(window);
         for (size_t i = 0; i < rays.size(); ++i)
         {
             rays[i].Draw(window);
