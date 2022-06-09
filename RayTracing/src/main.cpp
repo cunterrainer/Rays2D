@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <cmath>
 
 #include "SFML/Graphics.hpp"
 
@@ -193,7 +194,7 @@ std::pair<Line, Line> CalculateRays(const Line& line, float radius, const Coordi
 int main()
 {
 	sf::RenderWindow window(sf::VideoMode(1000, 750), "Rays");
-	size_t framerateLimit = 60;
+	unsigned int framerateLimit = 60;
 	std::string framerateLimitStr = std::to_string(framerateLimit);
 	window.setFramerateLimit(framerateLimit);
 
@@ -237,7 +238,7 @@ int main()
 	bool whiteTextColor = true;
 
 	float fps = 0.f;
-	const sf::Clock clock = sf::Clock::Clock();
+	const sf::Clock clock;
 	sf::Time previousTime = clock.getElapsedTime();
 	sf::Time currentTime;
 
@@ -289,8 +290,16 @@ int main()
 				}
 				else if (event.key.code == sf::Keyboard::F)
 				{
-					window.setFramerateLimit(SIZE_MAX);
-					framerateLimitStr = "Off";
+					if (framerateLimitStr == "Off")
+					{
+						window.setFramerateLimit(framerateLimit);
+						framerateLimitStr = std::to_string(framerateLimit);
+					}
+					else
+					{
+						window.setFramerateLimit(UINT_MAX);
+						framerateLimitStr = "Off";
+					}
 				}
 				else if (event.key.code == sf::Keyboard::E)
 				{

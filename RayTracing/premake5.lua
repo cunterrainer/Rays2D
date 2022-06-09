@@ -1,6 +1,7 @@
 project "RayTracing"
     language "C++"
     cppdialect "C++17"
+    staticruntime "on"
 
     defines "SFML_STATIC"
 
@@ -27,7 +28,9 @@ project "RayTracing"
         "vorbisenc",
         "vorbisfile",
         "gdi32",
-        "SFML"
+        "SFML",
+        "user32",
+        "advapi32"
     }
 
     filter { "platforms:x64" }

@@ -1,6 +1,7 @@
 project "SFML"
     kind "StaticLib"
     language "C++"
+    staticruntime "on"
 
     defines {
         "SFML_STATIC",
