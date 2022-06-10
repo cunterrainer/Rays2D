@@ -6,7 +6,6 @@
 #include <string>
 #include <tuple>
 #include <vector>
-#include <unordered_set>
 
 #include "SFML/Graphics.hpp"
 
@@ -288,6 +287,14 @@ public:
 };
 
 
+struct LinePair
+{
+public:
+	Line light, shadow;
+	LinePair(const sf::Vector2f& origin) : light(origin) {}
+};
+
+
 void HandleInput(sf::RenderWindow& window, DisplayedTexts& texts, sf::CircleShape& circle, LightSource& lightSource)
 {
 	sf::Event event;
@@ -362,41 +369,8 @@ void HandleInput(sf::RenderWindow& window, DisplayedTexts& texts, sf::CircleShap
 	if (sf::Mouse::isButtonPressed(sf::Mouse::Left) && window.hasFocus())
 	{
 		const sf::Vector2i mousePos = sf::Mouse::getPosition(window);
-		//if(mousePos.x >= lightSource.getPosition().x && mousePos.x <= lightSource.getPosition().x + lightSource.getRadius() * 2 &&
-		//	mousePos.y >= lightSource.getPosition().y && mousePos.y <= lightSource.getPosition().y + lightSource.getRadius() * 2)
-		
-		
-		//else if(mousePos.x >= circle.getPosition().x && mousePos.x <= circle.getPosition().x + circle.getRadius() * 2 &&
-		//	mousePos.y >= circle.getPosition().y && mousePos.y <= circle.getPosition().y + circle.getRadius() * 2)
 		circle.setPosition({ static_cast<float>(mousePos.x) - circle.getRadius(), static_cast<float>(mousePos.y) - circle.getRadius() });
-		
-		//else if(lightSource.getPosition().x - lightSource.getRadius() * 2 <= 0.f || lightSource.getPosition().x >= window.getSize().x ||
-		//	lightSource.getPosition().y - lightSource.getRadius() * 2 <= 0.f || lightSource.getPosition().y >= window.getSize().y)
-		//	lightSource.setPosition(static_cast<float>(mousePos.x) - lightSource.getRadius(), static_cast<float>(mousePos.y) - lightSource.getRadius());
-		//
-		//else if(circle.getPosition().x - circle.getRadius() * 2 <= 0.f || circle.getPosition().x >= window.getSize().x ||
-		//	circle.getPosition().y - circle.getRadius() * 2 <= 0.f || circle.getPosition().y >= window.getSize().y)
-		//	circle.setPosition({ static_cast<float>(mousePos.x) - circle.getRadius(), static_cast<float>(mousePos.y) - circle.getRadius() });
-
-		//else // calculate the distance between the mouse and circle / light source and set the closer one
-		//{
-		//	sf::Vector2i lineMouseCircle;
-		//	lineMouseCircle.x = mousePos.x - static_cast<int>(circle.getPosition().x + circle.getRadius());
-		//	lineMouseCircle.y = mousePos.y - static_cast<int>(circle.getPosition().y + circle.getRadius());
-		//
-		//	sf::Vector2i lineMouseLight;
-		//	lineMouseLight.x = mousePos.x - static_cast<int>(lightSource.getPosition().x + lightSource.getRadius());
-		//	lineMouseLight.y = mousePos.y - static_cast<int>(lightSource.getPosition().y + lightSource.getRadius());
-		//
-		//	// pythagorean theorem
-		//	unsigned int lengthMouseCircle = lineMouseCircle.x * lineMouseCircle.x + lineMouseCircle.y * lineMouseCircle.y;
-		//	unsigned int lengthMouseLight = lineMouseLight.x * lineMouseLight.x + lineMouseLight.y * lineMouseLight.y;
-		//
-		//	if(lengthMouseCircle <= lengthMouseLight)
-		//		circle.setPosition({ static_cast<float>(mousePos.x) - circle.getRadius(), static_cast<float>(mousePos.y) - circle.getRadius() });
-		//	else
-		//		lightSource.setPosition(static_cast<float>(mousePos.x) - lightSource.getRadius(), static_cast<float>(mousePos.y) - lightSource.getRadius());
-		//}
+	
 	}
 	if (sf::Mouse::isButtonPressed(sf::Mouse::Right) && window.hasFocus())
 	{
@@ -422,7 +396,7 @@ void HandleInput(sf::RenderWindow& window, DisplayedTexts& texts, sf::CircleShap
 }
 
 
-void SetProperValues(Line& ray, const sf::Vector2f& origin, const sf::Vector2f& direction, float t1, float t2, bool shadow)
+void SetProperValues(Line& light, Line& shadow, const sf::Vector2f& origin, const sf::Vector2f& direction, float t1, float t2)
 {
 	const sf::Vector2f point1 = origin + direction * t1;
 	const sf::Vector2f point2 = origin + direction * t2;
@@ -435,61 +409,55 @@ void SetProperValues(Line& ray, const sf::Vector2f& origin, const sf::Vector2f& 
 
 	if (length1 < length2)
 	{
-		if (shadow)
-		{
-			ray.m_Origin = point2;
-			ray.m_Intersection = ray.m_Origin + direction * (t2 * 10000.f);
-		}
-		else
-			ray.m_Intersection = point1;
+		shadow.m_Origin = point2;
+		shadow.m_Intersection = shadow.m_Origin + direction * (t2 * 10000.f);
+		light.m_Intersection = point1;
 	}
 	else
 	{
-		if (shadow)
-		{
-			ray.m_Origin = point1;
-			ray.m_Intersection = ray.m_Origin + direction * (t1 * 10000.f);
-		}
-		else
-			ray.m_Intersection = point2;
+		shadow.m_Origin = point1;
+		shadow.m_Intersection = shadow.m_Origin + direction * (t1 * 10000.f);
+		light.m_Intersection = point2;
 	}
 }
 
 
-std::pair<Line, Line> CalculateRays(const sf::Vector2f& origin, const sf::Vector2f& direction, float radius, const sf::Vector2f& circlePos)
+LinePair CalculateRays(const sf::Vector2f& origin, const sf::Vector2f& direction, size_t radius, const sf::Vector2f& circlePos)
 {
-	Line light(origin), shadow;
+	LinePair rays(origin);
 	
 	const float a = direction.x * direction.x + direction.y * direction.y;
 	const float b = 2.f * origin.x * direction.x - 2.f * direction.x * circlePos.x + 2.f * origin.y * direction.y - 2.f * direction.y * circlePos.y;
 	const float c = origin.x * origin.x - 2.f * origin.x * circlePos.x + circlePos.x * circlePos.x + origin.y * origin.y - 2.f * origin.y * circlePos.y + circlePos.y * circlePos.y - radius * radius;
 
-	const float discriminant = b * b - 4.f * a * c;
+	float discriminant = b * b - 4.f * a * c;
 	if (discriminant < 0)
-		return { light, shadow };
-	else if (discriminant == 0)
+		return rays;
+	
+	const float denominator = 2.f * a;
+	if (discriminant > 0)
 	{
-		const float t = -b / (2.f * a);
-		light.m_Intersection = origin + direction * t;
-		shadow.m_Origin = light.m_Intersection;
-		shadow.m_Intersection = shadow.m_Origin + direction * (t * 10000.f); // arbitrary scalar
+		discriminant = sqrt(discriminant);
+		const float t1 = (-b + discriminant) / denominator;
+		const float t2 = (-b - discriminant) / denominator;
+		SetProperValues(rays.light, rays.shadow, origin, direction, t1, t2);
 	}
-	else
+	else // discriminant == 0
 	{
-		const float t1 = (-b + sqrt(discriminant)) / (2.f * a);
-		const float t2 = (-b - sqrt(discriminant)) / (2.f * a);
-		SetProperValues(light, origin, direction, t1, t2, false);
-		SetProperValues(shadow, origin, direction, t1, t2, true);
+		const float t = -b / denominator;
+		rays.light.m_Intersection = origin + direction * t;
+		rays.shadow.m_Origin = rays.light.m_Intersection;
+		rays.shadow.m_Intersection = rays.shadow.m_Origin + direction * (t * 10000.f); // arbitrary scalar
 	}
 
-	light.m_Light = true;
-	return { light, shadow };
+	rays.light.m_Light = true;
+	return rays;
 }
 
 
 int main()
 {
-	sf::RenderWindow window(sf::VideoMode(1000, 750), "Rays");
+	sf::RenderWindow window(sf::VideoMode(1000, 750), "Playing with rays");
 
 	DisplayedTexts texts(window.getSize().x, 0.f, 30.f);
 	window.setFramerateLimit(texts.fpsLimitValue);
@@ -535,32 +503,47 @@ int main()
 			YOffset = YOff;
 			XOffset = XOff;
 
+			bool foundInArea = false;
 			for (size_t j = 0; j < 2; ++j)
 			{
+				bool found = false;
+				size_t foundIndex = 0;
 				for (size_t i = 0; i < 4450; ++i)
 				{
 					if (lightSoure.m_Direction.x < 0.f && lightSoure.m_Direction.y > 750.f
 						|| lightSoure.m_Direction.x < 0.f && lightSoure.m_Direction.y < 0.f)
 						break;
 
-					std::pair<Line, Line> lines = CalculateRays(lightSoure.m_Origin, lightSoure.m_Direction, static_cast<float>(texts.radiusValue), circlePosition);
-					if (lines.first.m_Light) // is only true if ray hits the circle
+					LinePair lines = CalculateRays(lightSoure.m_Origin, lightSoure.m_Direction, texts.radiusValue, circlePosition);
+					if (lines.light.m_Light) // is only true if ray hits the circle
 					{
+						if (!found)
+							foundIndex = i;
+						found = true;
+
 						if (texts.lightOn)
 						{
-							lines.first.Draw(window);
+							lines.light.Draw(window);
 							++texts.lightRaysAmount;
 						}
 						if (texts.shadowOn)
 						{
-							lines.second.Draw(window);
+							lines.shadow.Draw(window);
 							++texts.shadowRaysAmount;
 						}
+					}
+					else if (found)
+					{
+						if(foundIndex != 0)
+							foundInArea = true;
+						break;
 					}
 
 					lightSoure.m_Direction.y += YOffset;
 					lightSoure.m_Direction.x -= XOffset;
 				}
+				if(foundInArea)
+					break;
 
 				lightSoure.m_Direction.x = XDir;
 				lightSoure.m_Direction.y = YDir;
