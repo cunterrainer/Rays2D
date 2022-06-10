@@ -154,9 +154,6 @@
 
 
 
-
-
-
 \documentclass[12pt]{article}
 \usepackage{amsmath}
 \usepackage{graphicx}
@@ -170,20 +167,20 @@
 \maketitle
 
 \section*{Introduction}
-Every time we'll talk about raytracing it's referred to a sphere or circle if not mentioned otherwise. \newline
-When talking about ray tracing we talk about having a circle and a single point in our coordinate system that's emitting
+Every time I'm gonna talk about raytracing it's referred to a sphere or circle if not mentioned otherwise. \newline
+When talking about raytracing we talk about having a circle and a single point in our coordinate system that's emitting
 lines to which we'll refer as rays. \newline
-So now we need a point in space, a direction and the circle. What we're gonna calculate is the scalar for our line. \newline
-Although we're gonna go through the process with a circle, tracing a sphere works exactly the same way but you have $x,y,z$ coordinates instead of just $x,y$ what leads to solving more parenthesis.
+So now we need a point in space, a direction and a circle. What we're gonna calculate is the scalar for our line. \newline
+Although we're gonna go through the process with a circle, tracing a sphere works exactly the same way but you have $x,y,z$ coordinates instead of just $x,y$ what leads to solving more parenthesis. A sphere is being mentioned down below but without in depth explanations.
 
 \section*{Line equation}
-We have a line that's described with $y=mx+c$. But we don't have this equation just yet since we only have an origin and a direction. Now we want to "emit" a line from our origin and see if it will ever intersect with our circle. If it does our intersection is described with $\Vec{c}=\Vec{a}+\Vec{b}*t$ ($a=origin, b=direction, t=scalar, c=intersection$) \newline We can even split this equation into solving $x$ and $y$ separately.
-$$\Vec{c}=\Vec{a}+\Vec{b}*t \left\{\begin{array}{l}c_x=a_x+b_x*t\\c_y=a_y+b_y*t\end{array}\right$$
+We have a line that's defined with $y=mx+c$. But we don't have this equation just yet since we only have an origin and a direction. Now we want to "emit" a line from our origin and see if it will ever intersect with our circle. If it does our intersection is defined with $\Vec{c}=\Vec{a}+\Vec{b}t$ ($a=origin, b=direction, t=scalar, c=intersection$) \newline We can even split this equation into solving $x$ and $y$ separately.
+$$\Vec{c}=\Vec{a}+\Vec{b}t \left\{\begin{array}{l}c_x=a_x+b_xt\\c_y=a_y+b_yt\end{array}\right$$
 The scalar describes how many times we have to go in our direction from our origin.\newpage
 Example:\newline
 \includegraphics[scale=1]{line_with_points.PNG}\newline
 Here the origin is $(1,1)$ and the destination is $(3,3)$. That means the direction is $(1,1)$ and the scalar $t=2$.
-$$\Vec{c}=\Vec{a}+\Vec{b}*t \left\{\begin{array}{l}c_x=a_x+b_x*t\\c_y=a_y+b_y*t\end{array}\right$$
+$$\Vec{c}=\Vec{a}+\Vec{b}t \left\{\begin{array}{l}c_x=a_x+b_xt\\c_y=a_y+b_yt\end{array}\right$$
 $$c_x: 1+1*2=3$$
 $$c_y: 1+1*2=3$$
 $$=> c(3,3)$$
@@ -191,29 +188,29 @@ $$=> c(3,3)$$
 
 \section*{Circular equation}
 $$(x-c_x)^2 + (y-c_y)^2 - r^2=0$$
-c = center of circle, r = radius and $(x,y)$ is the intersection point with a line.
+c = center of circle, r = radius, $(x,y)$ is the intersection with a line.
 
 \section*{Find the intersection}
 To find the intersection of a point with a direction and a circle we insert the equation for the intersection point of the line into the circular equation.
 $$(a_x+b_xt-c_x)^2+(a_y+b_yt-c_y)^2-r^2=0$$
 Next step is to bring it in the form of a quadratic equation
 $$ax^2+bx+c=0$$
-But for us $t$ will be $x$ since we want to find the scalar for our line.
+Let's use $t$ instead of $x$ just make clear that we want to find the scalar
 $$at^2+bt+c=0$$ \newline
 1. Step: Solve the parentheses\newline
 $$(a_x+b_xt-c_x)^2=(a_x+b_xt-c_x)*(a_x+b_xt-c_x)$$
 $$(a_x+b_xt-c_x)*(a_x+b_xt-c_x)$$
 $$=a_x^2+a_xb_xt-a_xc_x+a_xb_xt+b_x^2t^2-b_xtc_x-a_xc_x-b_xtc_x+c_x^2$$
 $$=a_x^2+2a_xb_xt-2a_xc_x+b_x^2t^2-2b_xtc_x+c_x^2$$ \newline
-Solving for y works the exact same way it's:
-$$a_y^2+2a_yb_yt-2a_yc_y+b_y^2t^2-2b_ytc_y+c_y^2$$
+Solving for y works the exact same way:
+$$a_y^2+2a_yb_yt-2a_yc_y+b_y^2t^2-2b_ytc_y+c_y^2$$ \newline
 Insert it back into the quadratic equation
-$$a_x^2+2a_xb_xt-2a_xc_x+b_x^2t^2-2b_xtc_x+c_x^2+a_y^2+2a_yb_yt-2a_yc_y+b_y^2t^2-2b_ytc_y+c_y^2-r^2=0$$\newline \newline
-2. Step Simplify it by bringing same terms together
+$$a_x^2+2a_xb_xt-2a_xc_x+b_x^2t^2-2b_xtc_x+c_x^2+a_y^2+2a_yb_yt-2a_yc_y+b_y^2t^2-2b_ytc_y+c_y^2-r^2=0$$\newline
+2. Step: Simplify it by bringing same terms together
 $$(b_x^2+b_y^2)t^2 + (2a_xb_x - 2b_xc_x + 2a_yb_y - 2b_yc_y)t + (a_x^2 - 2a_xc_x + c_x^2 + a_y^2 - 2a_yc_y + c_y^2 - r^2)=0$$
-Now it's in the form of the quadratic formula.\newline
+Now it's in the proper form to use the quadratic formula\newline
 \newpage
-3. Step: Solve the equation using the quadratic formula\newline
+\noindent 3. Step: Solve the equation using the quadratic formula\newline
 Quadratic formula:
 $$\frac{-b +- \sqrt{b^2 - 4ac}}{2a}$$
 First of all check the discriminant $D$
@@ -222,8 +219,8 @@ If $D<0$ no intersections \newline
 If $D=0$ one intersection \newline
 If $D>0$ two intersections \newline
 
-If there are no intersections you can stop the calculations right here.\newline \newline
-4. Step: Calculate the t values\newline
+\noindent If there are no intersections you can stop the calculations right there.\newline \newline
+4. Step: Calculate t values\newline
 $D>0$ (two intersections)\newline
 $$t_{1,2}=\frac{-b +- \sqrt{D}}{2a} 
 \left\{\begin{array}{l}t_1=\frac{-b + \sqrt{D}}{2a}\\t_2=\frac{-b - \sqrt{D}}{2a}\end{array}\right$$
@@ -231,24 +228,91 @@ $D=0$ (one intersection)\newline
 $$t=\frac{-b}{2a}$$
 \newline
 5. Step: Get correct t value (the closer one, only if you have 2 intersections)\newline
-Get both intersection points:
+Get both intersections:
 $$\vec{c_1}=\vec{a}+\vec{b}t_1$$
 $$\vec{c_2}=\vec{a}+\vec{b}t_2$$
 \newline
-Calculate the vectors\newline
+Calculate the vectors:\newline
 $$\vec{v_1}=\vec{c_1}-\vec{a}$$
 $$\vec{v_2}=\vec{c_2}-\vec{a}$$\newpage
-Calculate the distance origin, intersection (pythagorean theorem)\newline
+\noindent Calculate the distance origin - intersection (pythagorean theorem):\newline
 $$d_1=v_1_x^2 + v_1_y^2$$
 $$d_2=v_2_x^2 + v_2_y^2$$
 \newline
 Check which one is closer to the origin: \newline
-If $d_1 < d_2$ $t_1$ is the correct t value\newline
-If $d_2 < d_1$ $t_2$ is the correct t value\newline
+If $d_1 < d_2$: $t_1$ is the correct t value\newline
+If $d_2 < d_1$: $t_2$ is the correct t value\newline
 \newline
 Now the intersection point can be calculated:
 $$\Vec{c}=\Vec{a}+\Vec{b}t$$
 The vector from the origin to the intersection is:
 $$\Vec{v}=\Vec{c}-\Vec{a}$$
+\newline \newline
+Example: \newline
+Origin $a = (-300, 0)$ \newline
+Direction $b = (1, 0)$ \newline
+Radius $r = 100$ \newline
+Circle $c = (0, 0)$\newline \newline
+1. Step: insert it into the quadratic equation
+$$(b_x^2+b_y^2)t^2 + (2a_xb_x - 2b_xc_x + 2a_yb_y - 2b_yc_y)t + (a_x^2 - 2a_xc_x + c_x^2 + a_y^2 - 2a_yc_y + c_y^2 - r^2)=0$$
+$$=>(1^2+0^2)t^2 +$$ $$(2*(-300)*1 - 2*1*0 + 2*0*0 - 2*0*0)t + $$ $$((-300)^2 - 2*(-300)*0 + 0^2 + 0^2 - 2*0*0 + 0^2 - 100^2)=0$$
+$$=>t^2-600t+80000=0$$ \newpage
+
+\noindent 2. Step: Solve the quadratic equation \newline
+Discriminant $D=b^2-4ac => D = (-600)^2 - 4*1*80000 = 40000$ \newline
+$=> D > 0$: two intersections \newline
+\newline
+Insert it into the quadratic formula:
+$$t_1=\frac{-(-600)+\sqrt{40000}}{2*1} = 400$$
+$$t_2=\frac{-(-600)-\sqrt{40000}}{2*1} = 200$$
+\newline
+Get the proper t value by calculating both intersections:
+$$\vec{c_1}=\vec{a}+\vec{b}t_1=\begin{pmatrix}-300\\0\end{pmatrix}
++\begin{pmatrix}1\\0\end{pmatrix}*400=\begin{pmatrix}100\\0\end{pmatrix}$$
+
+$$\vec{c_2}=\vec{a}+\vec{b}t_2=\begin{pmatrix}-300\\0\end{pmatrix}
++\begin{pmatrix}1\\0\end{pmatrix}*200=\begin{pmatrix}-100\\0\end{pmatrix}$$
+Calculate the origin - intersection vector:
+$$\vec{v_1} = \vec{c_1} - \vec{a}=\begin{pmatrix}100\\0\end{pmatrix}
+-\begin{pmatrix}-300\\0\end{pmatrix}=\begin{pmatrix}400\\0\end{pmatrix}$$
+$$\vec{v_2} = \vec{c_2} - \vec{a}=\begin{pmatrix}-100\\0\end{pmatrix}
+-\begin{pmatrix}-300\\0\end{pmatrix}=\begin{pmatrix}200\\0\end{pmatrix}$$
+Calculate the distance between the origin and the intersection using the pythagorean theorem
+$$d_1=v_1_x^2+v_1_y^2=400^2+0^2=160000$$
+$$d_2=v_2_x^2+v_2_y^2=200^2+0^2=40000$$
+Check which one is shorter, in this case $d_s < d_1 => t_2$ is the correct $t$ value \newline
+Now you know $c_2$ is your intersection and $\vec{v_2}$ is the proper vector. \newpage
+
+\section*{Line equation 3D}
+$$\Vec{c}=\Vec{a}+\Vec{b}t \left\{\begin{array}{l}c_x=a_x+b_xt\\c_y=a_y+b_yt\\c_z=a_z+b_zt
+\end{array}\right$$
+
+\section*{Sphere equation}
+$$(x-c_x)^2 + (y-c_y)^2 + (z-c_z)^2 - r^2=0$$
+c = center of sphere, r = radius, $(x,y,z)$ is the intersection with a line.
+
+\section*{Find the intersection 3D}
+$$(a_x+b_xt-c_x)^2+(a_y+b_yt-c_y)^2+(a_z+b_zt)^2-r^2=0$$
+Same as before, just bring it in the form of a quadratic equation
+$$at^2+bt+c=0$$
+\newline
+Solved parentheses:
+$$a_x^2+2a_xb_xt-2a_xc_x+b_x^2t^2-2b_xtc_x+c_x^2$$
+$$a_y^2+2a_yb_yt-2a_yc_y+b_y^2t^2-2b_ytc_y+c_y^2$$
+$$a_z^2+2a_zb_zt-2a_zc_z+b_z^2t^2-2b_ztc_z+c_z^2$$
+\newline
+Insert it into the quadratic equation:
+$$a_x^2+2a_xb_xt-2a_xc_x+b_x^2t^2-2b_xtc_x+c_x^2$$
+$$+a_y^2+2a_yb_yt-2a_yc_y+b_y^2t^2-2b_ytc_y+c_y^2$$
+$$+a_z^2+2a_zb_zt-2a_zc_z+b_z^2t^2-2b_ztc_z+c_z^2-r^2=0$$
+\newpage
+Simplify:
+$$(b_x^2+b_y^2+b_z^2)t^2$$
+$$+ (2a_xb_x - 2b_xc_x + 2a_yb_y - 2b_yc_y + 2a_zb_z - 2b_zc_z)t$$
+$$+ (a_x^2 - 2a_xc_x + c_x^2 + a_y^2 - 2a_yc_y + c_y^2 + a_z^2 - 2a_zc_z + c_z^2 - r^2)=0$$
+\newline
+From now on it works the exact same way as if you'd use a circle. You can simply continue from step 3. in "Find the intersection". The only noticeable difference is calculating the distance from origin - intersection
+$$d_1=v_1_x^2+v_1_y^2+v_1_z^2$$
+$$d_2=v_2_x^2+v_2_y^2+v_2_z^2$$
 
 \end{document}
