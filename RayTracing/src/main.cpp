@@ -1,5 +1,4 @@
 #include <array>
-#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <iostream>
@@ -14,32 +13,40 @@
 
 struct Line
 {
+private:
+	static const sf::Color s_LightColor;
+	static const sf::Color s_ShadowColor;
 public:
-	enum class Type { Light, Shadow, Transparent };
-
-	sf::Vector2f m_Origin, m_Direction, m_Intersection;
-	float t = 1.f;
-	bool m_IsValid = false;
-	Type m_Type = Type::Transparent;
-	sf::Color m_DrawColor;
+	sf::Vector2f m_Origin, m_Intersection;
+	bool m_Light = false;
 
 	Line() = default;
-	Line(const sf::Vector2f& origin, const sf::Vector2f& direction) : m_Origin(origin), m_Direction(direction) {}
-
-	void SetTransparent() { m_DrawColor = sf::Color::Transparent; m_Type = Type::Transparent; }
-	void SetLight() { m_DrawColor = sf::Color(255, 255, 102); m_Type = Type::Light; }
-	void SetDark() { m_DrawColor = sf::Color(70, 70, 70); m_Type = Type::Shadow; }
+	Line(const sf::Vector2f& origin) : m_Origin(origin) {}
 
 	void Draw(sf::RenderWindow& window)
 	{
-		const sf::Vertex line[2] =
+		if (m_Light)
 		{
-			sf::Vertex(m_Origin, m_DrawColor),
-			sf::Vertex(m_Intersection, m_DrawColor)
-		};
-		window.draw(line, 2, sf::Lines);
+			const sf::Vertex line[2] =
+			{
+				sf::Vertex(m_Origin, s_LightColor),
+				sf::Vertex(m_Intersection, s_LightColor)
+			};
+			window.draw(line, 2, sf::Lines);
+		}
+		else
+		{
+			const sf::Vertex line[2] =
+			{
+				sf::Vertex(m_Origin, s_ShadowColor),
+				sf::Vertex(m_Intersection, s_ShadowColor)
+			};
+			window.draw(line, 2, sf::Lines);
+		}
 	}
 };
+const sf::Color Line::s_LightColor = sf::Color(255, 255, 102);
+const sf::Color Line::s_ShadowColor = sf::Color(70, 70, 70);
 
 
 struct Text : public sf::Text
@@ -359,7 +366,7 @@ void HandleInput(sf::RenderWindow& window, DisplayedTexts& texts, sf::CircleShap
 }
 
 
-float GetCorrectTValue(Line& ray, const sf::Vector2f& origin, const sf::Vector2f& direction, float t1, float t2, bool light)
+void SetProperValues(Line& ray, const sf::Vector2f& origin, const sf::Vector2f& direction, float t1, float t2, bool shadow)
 {
 	const sf::Vector2f point1 = origin + direction * t1;
 	const sf::Vector2f point2 = origin + direction * t2;
@@ -372,43 +379,30 @@ float GetCorrectTValue(Line& ray, const sf::Vector2f& origin, const sf::Vector2f
 
 	if (length1 < length2)
 	{
-		if (!light)
+		if (shadow)
 		{
 			ray.m_Origin = point2;
-			ray.t = t2 * 10000.f;
-			ray.m_Intersection = ray.m_Origin + direction * ray.t;
-			return ray.t;
+			ray.m_Intersection = ray.m_Origin + direction * (t2 * 10000.f);
 		}
 		else
-		{
 			ray.m_Intersection = point1;
-			ray.t = t1;
-			return t1;
-		}
 	}
 	else
 	{
-		if (!light)
+		if (shadow)
 		{
 			ray.m_Origin = point1;
-			ray.t = t1 * 10000.f;
-			ray.m_Intersection = ray.m_Origin + direction * ray.t;
-			return ray.t;
+			ray.m_Intersection = ray.m_Origin + direction * (t1 * 10000.f);
 		}
 		else
-		{
 			ray.m_Intersection = point2;
-			ray.t = t2;
-			return t2;
-		}
 	}
 }
 
 
-std::pair<Line, Line> CalculateRays(const sf::Vector2f& origin, const sf::Vector2f& direction, 
-	float radius, const sf::Vector2f& circlePos)
+std::pair<Line, Line> CalculateRays(const sf::Vector2f& origin, const sf::Vector2f& direction, float radius, const sf::Vector2f& circlePos)
 {
-	Line light, shadow;
+	Line light(origin), shadow;
 	
 	const float a = direction.x * direction.x + direction.y * direction.y;
 	const float b = 2.f * origin.x * direction.x - 2.f * direction.x * circlePos.x + 2.f * origin.y * direction.y - 2.f * direction.y * circlePos.y;
@@ -419,30 +413,20 @@ std::pair<Line, Line> CalculateRays(const sf::Vector2f& origin, const sf::Vector
 		return { light, shadow };
 	else if (discriminant == 0)
 	{
-		light.t = -b / (2.f * a);
-		light.m_Intersection = origin + direction * light.t;
-		shadow.t = light.t * 10000.f;
-		shadow.m_Origin = origin + shadow.t * direction;
-		shadow.m_Intersection = shadow.m_Origin + direction * shadow.t;
+		const float t = -b / (2.f * a);
+		light.m_Intersection = origin + direction * t;
+		shadow.m_Origin = light.m_Intersection;
+		shadow.m_Intersection = shadow.m_Origin + direction * (t * 10000.f); // arbitrary scalar
 	}
 	else
 	{
 		const float t1 = (-b + sqrt(discriminant)) / (2.f * a);
 		const float t2 = (-b - sqrt(discriminant)) / (2.f * a);
-		light.t = GetCorrectTValue(light, origin, direction, t1, t2, true);
-		shadow.t = GetCorrectTValue(shadow, origin, direction, t1, t2, false);
+		SetProperValues(light, origin, direction, t1, t2, false);
+		SetProperValues(shadow, origin, direction, t1, t2, true);
 	}
 
-	light.m_Direction = direction;
-	light.m_Origin = origin;
-	light.m_Intersection = light.m_Intersection;
-	light.m_IsValid = true;
-	light.SetLight();
-
-	shadow.m_Direction = direction;
-	shadow.m_Origin = shadow.m_Origin;
-	shadow.m_IsValid = true;
-	shadow.SetDark();
+	light.m_Light = true;
 	return { light, shadow };
 }
 
@@ -454,26 +438,20 @@ int main()
 	DisplayedTexts texts(window.getSize().x, 0.f, 30.f);
 	window.setFramerateLimit(texts.fpsLimitValue);
 
-	//const CoordinateTransformer tf(window);
-
 	sf::CircleShape circle(100.f, 70);
-	circle.setPosition(500.f - circle.getRadius(), 375.f - circle.getRadius());
+	circle.setPosition((static_cast<float>(window.getSize().x) / 2.f) - circle.getRadius(), (static_cast<float>(window.getSize().y) / 2.f) - circle.getRadius());
 	circle.setFillColor(sf::Color::White);
 	texts.radiusValue = static_cast<size_t>(circle.getRadius());
 
-	const float dir1 = 0.f;
-	const float dir2 = 1000.f;
+	const float YDir = 0.f;
+	const float XDir = 1000.f;
 	const float XOff = 0.225f;
 	const float YOff = 0.225f;
 
 	float YOffset = YOff;
 	float XOffset = XOff;
-	float YAngle = dir1;
-	float XAngle = dir2;
-	sf::Vector2f lightDirection(XAngle, YAngle);
-	const sf::Vector2f lightOrigin(
-		0.f,0.f
-	);
+	sf::Vector2f lightDirection(XDir, YDir);
+	const sf::Vector2f lightOrigin(0.f,0.f);
 
 	float fps = 0.f;
 	const sf::Clock clock;
@@ -483,19 +461,22 @@ int main()
 	while (window.isOpen())
 	{
 		HandleInput(window, texts, circle);
-		
+
 		window.clear(sf::Color(105, 105, 105, 255));
 		window.draw(circle);
 
 		if (texts.lightOn || texts.shadowOn)
 		{
+			const sf::Vector2f circleRealPosition = circle.getPosition();
+			const sf::Vector2f circlePosition(circleRealPosition.x + static_cast<float>(texts.radiusValue), circleRealPosition.y + static_cast<float>(texts.radiusValue));
+			
 			for (size_t i = 0; i < 5000; ++i)
 			{
 				if (lightDirection.x < 0.f && lightDirection.y > 750.f)
 					break;
 
-				std::pair<Line, Line> lines = CalculateRays(lightOrigin, lightDirection, circle.getRadius(), sf::Vector2f(circle.getPosition().x + circle.getRadius(), circle.getPosition().y + circle.getRadius()));
-				if (lines.first.m_IsValid)
+				std::pair<Line, Line> lines = CalculateRays(lightOrigin, lightDirection, static_cast<float>(texts.radiusValue), circlePosition);
+				if (lines.first.m_Light) // is only true if the ray hits the circle
 				{
 					if (texts.lightOn)
 					{
@@ -512,8 +493,8 @@ int main()
 				lightDirection.x -= XOffset;
 			}
 
-			lightDirection.y = dir1;
-			lightDirection.x = dir2;
+			lightDirection.x = XDir;
+			lightDirection.y = YDir;
 			YOffset = YOff;
 			XOffset = XOff;
 		}
