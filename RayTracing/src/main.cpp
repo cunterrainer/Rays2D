@@ -4,28 +4,29 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <tuple>
 #include <vector>
 
 #include "SFML/Graphics.hpp"
 
 #include "Arial.h"
 
-struct Line
+struct Ray
 {
 private:
 	static const sf::Color s_LightColor;
 	static const sf::Color s_ShadowColor;
 public:
-	sf::Vector2f m_Origin, m_Intersection;
-	bool m_Light = false;
+	enum class Type { Light, Shadow, None };
 
-	Line() = default;
-	Line(const sf::Vector2f& origin) : m_Origin(origin) {}
+	sf::Vector2f m_Origin, m_Intersection;
+	Type m_Type = Type::None;
+
+	Ray() = default;
+	Ray(const sf::Vector2f& origin) : m_Origin(origin) {}
 
 	void Draw(sf::RenderWindow& window)
 	{
-		if (m_Light)
+		if (m_Type == Type::Light)
 		{
 			const sf::Vertex line[2] =
 			{
@@ -45,8 +46,16 @@ public:
 		}
 	}
 };
-const sf::Color Line::s_LightColor = sf::Color(255, 255, 102);
-const sf::Color Line::s_ShadowColor = sf::Color(70, 70, 70);
+const sf::Color Ray::s_LightColor = sf::Color(255, 255, 102);
+const sf::Color Ray::s_ShadowColor = sf::Color(70, 70, 70);
+
+
+struct RayPair
+{
+public:
+	Ray light, shadow;
+	RayPair(const sf::Vector2f& origin) : light(origin) {}
+};
 
 
 struct Text : public sf::Text
@@ -107,31 +116,74 @@ public:
 };
 
 
-template <size_t S>
-struct TextFactory
+struct DisplayTexts
 {
 private:
-	using cstringr = const std::string&;
-	using pair = const std::pair<std::int32_t, size_t>&;
-	using ppair = const std::tuple<std::int32_t, bool, cstringr, cstringr>&;
-private:
+	template <class T>
+	struct TextProperties
+	{
+	public:
+		size_t textId = size_t();
+		T value = T();
+	};
+private: // for generating texts
 	sf::Font m_Font;
 	unsigned int m_WindowSizeX;
-	float m_YPos;
-	float m_YOffset;
+	float m_YPos, m_YOffset;
 	size_t m_GeneratedTexts;
-	std::array<Text, S> m_Texts;
+	std::array<Text, 9> m_Texts;
+
+	const std::string onStr = "On";
+	const std::string offStr = "Off";
+	const std::string whiteStr = "White";
+	const std::string blackStr = "Black";
 public:
-	TextFactory(unsigned int windowXSize, float y, float yOffset)
-		: m_WindowSizeX(windowXSize), m_YPos(y), m_YOffset(yOffset), m_GeneratedTexts(0)
+	TextProperties<size_t> fps;
+	TextProperties<size_t> rays;
+	TextProperties<size_t> lightRays;
+	TextProperties<size_t> shadowRays;
+	TextProperties<size_t> radius;
+	TextProperties<bool> light;
+	TextProperties<bool> shadow;
+	TextProperties<bool> whiteTextColor;
+	TextProperties<std::pair<unsigned int, std::string>> fpsLimit;
+public:
+	DisplayTexts(unsigned int windowXSize, float yPos, float yOffset)
+		: m_WindowSizeX(windowXSize), m_YPos(yPos), m_YOffset(yOffset), m_GeneratedTexts(0)
 	{
 		m_Font.loadFromMemory(sg_RawArialData, sg_RawArialDataRelativeSize);
+
+		fps.textId = GenerateText("FPS: ");
+		rays.textId = GenerateText("Rays: ");
+		lightRays.textId = GenerateText("Light rays: ");
+		shadowRays.textId = GenerateText("Shadow rays: ");
+		radius.textId = GenerateText("Radius(Up,Down,->,<-): ");
+		light.textId = GenerateText("Light(a): ");
+		shadow.textId = GenerateText("Shadow(d): ");
+		whiteTextColor.textId = GenerateText("Text color(e): ");
+		fpsLimit.textId = GenerateText("FPS limit(w/s/f): ");
+
+		rays.value = 0;
+		lightRays.value = 0;
+		shadowRays.value = 0;
+		light.value = true;
+		shadow.value = true;
+		whiteTextColor.value = true;
+		fpsLimit.value = std::make_pair(60, "60");
 	}
 
 	void DrawTexts(sf::RenderWindow& window) const
 	{
 		for (size_t i = 0; i < m_GeneratedTexts; ++i)
 			window.draw(m_Texts[i]);
+	}
+
+	size_t GenerateText(const std::string& text)
+	{
+		m_Texts[m_GeneratedTexts].Init(m_Font, m_WindowSizeX, m_YPos, text);
+		++m_GeneratedTexts;
+		m_YPos += m_YOffset;
+		return m_GeneratedTexts - 1;
 	}
 
 	void UpdateWindowSizeX(unsigned int windowXSize)
@@ -147,128 +199,33 @@ public:
 			m_Texts[i].setFillColor(color);
 	}
 
-	void UpdateText(size_t index, const std::string& str)
+	void UpdateText(size_t textId, const std::string& strTrue, const std::string& strFalse, bool decider)
 	{
-		m_Texts[index].Update(str);
-	}
-
-	void UpdateText(size_t index, size_t value)
-	{
-		m_Texts[index].Update(value);
-	}
-
-	void UpdateText(pair content)
-	{
-		m_Texts[content.first].Update(content.second);
-	}
-
-	void UpdateText(ppair content)
-	{
-		if (std::get<1>(content))
-			UpdateText(std::get<0>(content), std::get<2>(content));
+		if (decider)
+			m_Texts[textId].Update(strTrue);
 		else
-			UpdateText(std::get<0>(content), std::get<3>(content));
+			m_Texts[textId].Update(strFalse);
 	}
 
-	std::int32_t GenerateText(const std::string& text)
+	void UpdateText(TextProperties<size_t>& text)
 	{
-		if (m_GeneratedTexts == S)
-			return -1;
-		m_Texts[m_GeneratedTexts].Init(m_Font, m_WindowSizeX, m_YPos, text);
-		++m_GeneratedTexts;
-		m_YPos += m_YOffset;
-		return m_GeneratedTexts - 1;
+		m_Texts[text.textId].Update(text.value);
 	}
 
-	void UpdateTexts(pair rays, pair lightRays, pair shadowRays, pair radius,
-		std::pair<std::int32_t, const std::string&> fpsLimit, ppair lightText, ppair shadowText, ppair textColorText)
+	void Update()
 	{
+		rays.value = lightRays.value + shadowRays.value;
 		UpdateText(rays);
-		UpdateText(lightRays); // light ray
-		UpdateText(shadowRays); // shadow ray
-
+		UpdateText(lightRays);
+		UpdateText(shadowRays);
 		UpdateText(radius);
-		UpdateText(fpsLimit.first, fpsLimit.second);
+		UpdateText(light.textId, onStr, offStr, light.value);
+		UpdateText(shadow.textId, onStr, offStr, shadow.value);
+		UpdateText(whiteTextColor.textId, whiteStr, blackStr, whiteTextColor.value);
+		m_Texts[fpsLimit.textId].Update(fpsLimit.value.second);
 
-		UpdateText(lightText);
-		UpdateText(shadowText);
-		UpdateText(textColorText);
-	}
-
-	Text& operator[](size_t index) { return m_Texts[index]; }
-};
-
-
-struct DisplayedTexts
-{
-public:
-	const std::string onStr = "On";
-	const std::string offStr = "Off";
-	const std::string whiteStr = "White";
-	const std::string blackStr = "Black";
-
-	TextFactory<9> factory;
-	std::int32_t fps, rays, lightRays, shadowRays, radius, light, shadow, textColor, fpsLimit;
-	bool lightOn, shadowOn, whiteTextColor;
-	unsigned int fpsLimitValue;
-	std::string fpsLimitStr;
-	size_t lightRaysAmount, shadowRaysAmount;
-	size_t radiusValue;
-
-	DisplayedTexts(unsigned int windowSizeX, float yPos, float yOffset)
-		: factory(windowSizeX, yPos, yOffset),
-		fps(factory.GenerateText("FPS: ")),
-		rays(factory.GenerateText("Rays: ")),
-		lightRays(factory.GenerateText("Light rays: ")),
-		shadowRays(factory.GenerateText("Shadow rays: ")),
-		radius(factory.GenerateText("Radius(Up,Down,->,<-): ")),
-		light(factory.GenerateText("Light(a): ")),
-		shadow(factory.GenerateText("Shadow(d): ")),
-		textColor(factory.GenerateText("Text color(e): ")),
-		fpsLimit(factory.GenerateText("FPS limit(w/s/f): ")),
-		lightOn(true),
-		shadowOn(true),
-		whiteTextColor(true),
-		fpsLimitValue(60),
-		fpsLimitStr(std::to_string(fpsLimitValue)),
-		lightRaysAmount(0),
-		shadowRaysAmount(0),
-		radiusValue(0) {}
-
-	void UpdateTexts()
-	{
-		factory.UpdateTexts(
-			{ rays, lightRaysAmount + shadowRaysAmount },
-			{ lightRays, lightRaysAmount },
-			{ shadowRays, shadowRaysAmount },
-			{ radius, radiusValue },
-			{ fpsLimit, fpsLimitStr },
-			std::make_tuple(light, lightOn, onStr, offStr),
-			std::make_tuple(shadow, shadowOn, onStr, offStr),
-			std::make_tuple(textColor, whiteTextColor, whiteStr, blackStr)
-		);
-		lightRaysAmount = 0;
-		shadowRaysAmount = 0;
-	}
-
-	void UpdateText(int32_t index, size_t value)
-	{
-		factory.UpdateText(index, value);
-	}
-
-	void SetFillColor(const sf::Color& color)
-	{
-		factory.SetFillColor(color);
-	}
-
-	void UpdateWindowSizeX(unsigned int windowXSize)
-	{
-		factory.UpdateWindowSizeX(windowXSize);
-	}
-
-	void DrawTexts(sf::RenderWindow& window)
-	{
-		factory.DrawTexts(window);
+		lightRays.value = 0;
+		shadowRays.value = 0;
 	}
 };
 
@@ -287,15 +244,7 @@ public:
 };
 
 
-struct LinePair
-{
-public:
-	Line light, shadow;
-	LinePair(const sf::Vector2f& origin) : light(origin) {}
-};
-
-
-void HandleInput(sf::RenderWindow& window, DisplayedTexts& texts, sf::CircleShape& circle, LightSource& lightSource)
+void HandleInput(sf::RenderWindow& window, DisplayTexts& texts, sf::CircleShape& circle, LightSource& lightSource, bool& circleOrLightMoved)
 {
 	sf::Event event;
 	while (window.pollEvent(event))
@@ -317,48 +266,56 @@ void HandleInput(sf::RenderWindow& window, DisplayedTexts& texts, sf::CircleShap
 				{
 					radius -= 1.f;
 					circle.setRadius(radius);
-					texts.radiusValue = static_cast<size_t>(radius);
+					texts.radius.value = static_cast<size_t>(radius);
+					circleOrLightMoved = true;
 				}
 			}
 			else if (event.key.code == sf::Keyboard::Right)
 			{
-				float radius = circle.getRadius() + 1.f;
+				const float radius = circle.getRadius() + 1.f;
 				circle.setRadius(radius);
-				texts.radiusValue = static_cast<size_t>(radius);
+				texts.radius.value = static_cast<size_t>(radius);
+				circleOrLightMoved = true;
 			}
 			else if (event.key.code == sf::Keyboard::A)
-				texts.lightOn = !texts.lightOn;
+			{
+				texts.light.value = !texts.light.value;
+				circleOrLightMoved = true;
+			}
 			else if (event.key.code == sf::Keyboard::D)
-				texts.shadowOn = !texts.shadowOn;
+			{
+				texts.shadow.value = !texts.shadow.value;
+				circleOrLightMoved = true;
+			}
 			else if (event.key.code == sf::Keyboard::S)
 			{
-				texts.fpsLimitValue = texts.fpsLimitValue == 1 ? 1 : texts.fpsLimitValue - 1;
-				window.setFramerateLimit(texts.fpsLimitValue);
-				texts.fpsLimitStr = std::to_string(texts.fpsLimitValue);
+				texts.fpsLimit.value.first = texts.fpsLimit.value.first == 1 ? 1 : texts.fpsLimit.value.first - 1;
+				window.setFramerateLimit(texts.fpsLimit.value.first);
+				texts.fpsLimit.value.second = std::to_string(texts.fpsLimit.value.first);
 			}
 			else if (event.key.code == sf::Keyboard::W)
 			{
-				texts.fpsLimitValue = texts.fpsLimitValue + 1;
-				window.setFramerateLimit(texts.fpsLimitValue);
-				texts.fpsLimitStr = std::to_string(texts.fpsLimitValue);
+				texts.fpsLimit.value.first = texts.fpsLimit.value.first + 1;
+				window.setFramerateLimit(texts.fpsLimit.value.first);
+				texts.fpsLimit.value.second = std::to_string(texts.fpsLimit.value.first);
 			}
 			else if (event.key.code == sf::Keyboard::F)
 			{
-				if (texts.fpsLimitStr == "Off")
+				if (texts.fpsLimit.value.second == "Off")
 				{
-					window.setFramerateLimit(texts.fpsLimitValue);
-					texts.fpsLimitStr = std::to_string(texts.fpsLimitValue);
+					window.setFramerateLimit(texts.fpsLimit.value.first);
+					texts.fpsLimit.value.second = std::to_string(texts.fpsLimit.value.first);
 				}
 				else
 				{
 					window.setFramerateLimit(UINT_MAX);
-					texts.fpsLimitStr = "Off";
+					texts.fpsLimit.value.second = "Off";
 				}
 			}
 			else if (event.key.code == sf::Keyboard::E)
 			{
-				texts.whiteTextColor = !texts.whiteTextColor;
-				if (texts.whiteTextColor)
+				texts.whiteTextColor.value = !texts.whiteTextColor.value;
+				if (texts.whiteTextColor.value)
 					texts.SetFillColor(sf::Color::White);
 				else
 					texts.SetFillColor(sf::Color::Black);
@@ -370,18 +327,20 @@ void HandleInput(sf::RenderWindow& window, DisplayedTexts& texts, sf::CircleShap
 	{
 		const sf::Vector2i mousePos = sf::Mouse::getPosition(window);
 		circle.setPosition({ static_cast<float>(mousePos.x) - circle.getRadius(), static_cast<float>(mousePos.y) - circle.getRadius() });
-	
+		circleOrLightMoved = true;
 	}
 	if (sf::Mouse::isButtonPressed(sf::Mouse::Right) && window.hasFocus())
 	{
 		const sf::Vector2i mousePos = sf::Mouse::getPosition(window);
 		lightSource.setPosition(static_cast<float>(mousePos.x) - lightSource.getRadius(), static_cast<float>(mousePos.y) - lightSource.getRadius());
+		circleOrLightMoved = true;
 	}
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up) && window.hasFocus())
 	{
-		float radius = circle.getRadius() + 1.f;
+		const float radius = circle.getRadius() + 1.f;
 		circle.setRadius(radius);
-		texts.radiusValue = static_cast<size_t>(radius);
+		texts.radius.value = static_cast<size_t>(radius);
+		circleOrLightMoved = true;
 	}
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down) && window.hasFocus())
 	{
@@ -390,13 +349,14 @@ void HandleInput(sf::RenderWindow& window, DisplayedTexts& texts, sf::CircleShap
 		{
 			radius -= 1.f;
 			circle.setRadius(radius);
-			texts.radiusValue = static_cast<size_t>(radius);
+			texts.radius.value = static_cast<size_t>(radius);
+			circleOrLightMoved = true;
 		}
 	}
 }
 
 
-void SetProperValues(Line& light, Line& shadow, const sf::Vector2f& origin, const sf::Vector2f& direction, float t1, float t2)
+void SetProperValues(Ray& light, Ray& shadow, const sf::Vector2f& origin, const sf::Vector2f& direction, float t1, float t2)
 {
 	const sf::Vector2f point1 = origin + direction * t1;
 	const sf::Vector2f point2 = origin + direction * t2;
@@ -422,9 +382,9 @@ void SetProperValues(Line& light, Line& shadow, const sf::Vector2f& origin, cons
 }
 
 
-LinePair CalculateRays(const sf::Vector2f& origin, const sf::Vector2f& direction, size_t radius, const sf::Vector2f& circlePos)
+RayPair CalculateRays(const sf::Vector2f& origin, const sf::Vector2f& direction, size_t radius, const sf::Vector2f& circlePos)
 {
-	LinePair rays(origin);
+	RayPair rays(origin);
 	
 	const float a = direction.x * direction.x + direction.y * direction.y;
 	const float b = 2.f * origin.x * direction.x - 2.f * direction.x * circlePos.x + 2.f * origin.y * direction.y - 2.f * direction.y * circlePos.y;
@@ -450,7 +410,8 @@ LinePair CalculateRays(const sf::Vector2f& origin, const sf::Vector2f& direction
 		rays.shadow.m_Intersection = rays.shadow.m_Origin + direction * (t * 10000.f); // arbitrary scalar
 	}
 
-	rays.light.m_Light = true;
+	rays.light.m_Type = Ray::Type::Light;
+	rays.shadow.m_Type = Ray::Type::Shadow;
 	return rays;
 }
 
@@ -459,8 +420,8 @@ int main()
 {
 	sf::RenderWindow window(sf::VideoMode(1000, 750), "Playing with rays");
 
-	DisplayedTexts texts(window.getSize().x, 0.f, 30.f);
-	window.setFramerateLimit(texts.fpsLimitValue);
+	DisplayTexts texts(window.getSize().x, 0.f, 30.f);
+	window.setFramerateLimit(texts.fpsLimit.value.first);
 
 	LightSource lightSoure(20.f, 50);
 	lightSoure.setFillColor(sf::Color(255, 255, 102));
@@ -469,7 +430,7 @@ int main()
 	sf::CircleShape circle(100.f, 70);
 	circle.setPosition((static_cast<float>(window.getSize().x) / 2.f) - circle.getRadius(), (static_cast<float>(window.getSize().y) / 2.f) - circle.getRadius());
 	circle.setFillColor(sf::Color::White);
-	texts.radiusValue = static_cast<size_t>(circle.getRadius());
+	texts.radius.value = static_cast<size_t>(circle.getRadius());
 
 	constexpr float YDir = 0.f;
 	constexpr float XDir = 1000.f;
@@ -479,24 +440,31 @@ int main()
 	float YOffset = YOff;
 	float XOffset = XOff;
 	lightSoure.m_Direction = sf::Vector2f(XDir, YDir);
+	std::vector<Ray> rays;
+	rays.reserve(4450 * 2);
 
-	float fps = 0.f;
 	const sf::Clock clock;
 	sf::Time previousTime = clock.getElapsedTime();
 	sf::Time currentTime;
 
+	bool circleOrLightMoved = true;
+	size_t lastLightRaysValue = 0;
+	size_t lastShadowRaysValue = 0;
+	
 	while (window.isOpen())
 	{
-		HandleInput(window, texts, circle, lightSoure);
+		HandleInput(window, texts, circle, lightSoure, circleOrLightMoved);
 
 		window.clear(sf::Color(105, 105, 105, 255));
 		window.draw(lightSoure);
 		window.draw(circle);
 
-		if (texts.lightOn || texts.shadowOn)
+		if ((texts.light.value || texts.shadow.value) && circleOrLightMoved)
 		{
+			circleOrLightMoved = false;
+			rays.clear();
 			const sf::Vector2f circleRealPosition = circle.getPosition();
-			const sf::Vector2f circlePosition(circleRealPosition.x + static_cast<float>(texts.radiusValue), circleRealPosition.y + static_cast<float>(texts.radiusValue));
+			const sf::Vector2f circlePosition(circleRealPosition.x + static_cast<float>(texts.radius.value), circleRealPosition.y + static_cast<float>(texts.radius.value));
 			
 			lightSoure.m_Direction.x = XDir;
 			lightSoure.m_Direction.y = YDir;
@@ -514,22 +482,24 @@ int main()
 						|| lightSoure.m_Direction.x < 0.f && lightSoure.m_Direction.y < 0.f)
 						break;
 
-					LinePair lines = CalculateRays(lightSoure.m_Origin, lightSoure.m_Direction, texts.radiusValue, circlePosition);
-					if (lines.light.m_Light) // is only true if ray hits the circle
+					RayPair lines = CalculateRays(lightSoure.m_Origin, lightSoure.m_Direction, texts.radius.value, circlePosition);
+					if (lines.light.m_Type == Ray::Type::Light) // is only true if ray hits the circle
 					{
 						if (!found)
 							foundIndex = i;
 						found = true;
 
-						if (texts.lightOn)
+						rays.push_back(lines.light);
+						rays.push_back(lines.shadow);
+						if (texts.light.value)
 						{
 							lines.light.Draw(window);
-							++texts.lightRaysAmount;
+							++texts.lightRays.value;
 						}
-						if (texts.shadowOn)
+						if (texts.shadow.value)
 						{
 							lines.shadow.Draw(window);
-							++texts.shadowRaysAmount;
+							++texts.shadowRays.value;
 						}
 					}
 					else if (found)
@@ -550,16 +520,35 @@ int main()
 				YOffset = YOff*-1;
 				XOffset = XOff;
 			}
-		}
-		texts.UpdateTexts();
 
+			lastLightRaysValue = texts.lightRays.value;
+			lastShadowRaysValue = texts.shadowRays.value;
+		}
+		else
+		{
+			for (Ray& ray : rays)
+			{
+				if (ray.m_Type == Ray::Type::Light && texts.light.value)
+				{
+					ray.Draw(window);
+					texts.lightRays.value = lastLightRaysValue;
+				}
+				else if (ray.m_Type == Ray::Type::Shadow && texts.shadow.value)
+				{
+					ray.Draw(window);
+					texts.shadowRays.value = lastShadowRaysValue;
+				}
+			}
+		}
+		
+		texts.Update();
 		texts.DrawTexts(window);
 		window.display();
 
 		currentTime = clock.getElapsedTime();
-		fps = 1.f / (currentTime.asSeconds() - previousTime.asSeconds());
+		texts.fps.value = static_cast<size_t>(1.f / (currentTime.asSeconds() - previousTime.asSeconds()));
 		previousTime = currentTime;
-		texts.UpdateText(texts.fps, static_cast<size_t>(fps));
+		texts.UpdateText(texts.fps);
 	}
 
 	return 0;
