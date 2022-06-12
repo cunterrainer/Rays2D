@@ -66,7 +66,7 @@ private:
 	float m_YPos;
 	std::string m_Text;
 private:
-	void InitObject(const sf::Font& font, float y, const std::string& text)
+	void InitObject(const sf::Font& font)
 	{
 		setFont(font);
 		setCharacterSize(20);
@@ -88,7 +88,7 @@ public:
 	Text() : m_Length(0), m_WindowXSize(0.f), m_YPos(0.f) {}
 	Text(const sf::Font& font, unsigned int windowXSize, float y, const std::string& text)
 		: m_Length(text.size()), m_WindowXSize(static_cast<float>(windowXSize)), m_YPos(y), m_Text(text) 
-		{ InitObject(font, y, text); }
+		{ InitObject(font); }
 
 	void Init(const sf::Font& font, unsigned int windowXSize, float y, const std::string& text)
 	{
@@ -96,7 +96,7 @@ public:
 		m_WindowXSize = static_cast<float>(windowXSize);
 		m_YPos = y;
 		m_Text = text;
-		InitObject(font, y, text); 
+		InitObject(font); 
 	}
 
 	void setPosition(float y)
@@ -382,7 +382,7 @@ void SetProperValues(Ray& light, Ray& shadow, const sf::Vector2f& origin, const 
 }
 
 
-RayPair CalculateRays(const sf::Vector2f& origin, const sf::Vector2f& direction, size_t radius, const sf::Vector2f& circlePos)
+RayPair CalculateRays(const sf::Vector2f& origin, const sf::Vector2f& direction, float radius, const sf::Vector2f& circlePos)
 {
 	RayPair rays(origin);
 	
@@ -478,11 +478,11 @@ int main()
 				size_t foundIndex = 0;
 				for (size_t i = 0; i < 4450; ++i)
 				{
-					if (lightSoure.m_Direction.x < 0.f && lightSoure.m_Direction.y > 750.f
-						|| lightSoure.m_Direction.x < 0.f && lightSoure.m_Direction.y < 0.f)
+					if ((lightSoure.m_Direction.x < 0.f && lightSoure.m_Direction.y > 750.f)
+						|| (lightSoure.m_Direction.x < 0.f && lightSoure.m_Direction.y < 0.f))
 						break;
 
-					RayPair lines = CalculateRays(lightSoure.m_Origin, lightSoure.m_Direction, texts.radius.value, circlePosition);
+					RayPair lines = CalculateRays(lightSoure.m_Origin, lightSoure.m_Direction, static_cast<float>(texts.radius.value), circlePosition);
 					if (lines.light.m_Type == Ray::Type::Light) // is only true if ray hits the circle
 					{
 						if (!found)
