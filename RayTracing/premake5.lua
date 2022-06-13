@@ -2,6 +2,7 @@ project "RayTracing"
     language "C++"
     cppdialect "C++17"
     staticruntime "on"
+    warnings "High"
 
     defines "SFML_STATIC"
 
