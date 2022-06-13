@@ -22,6 +22,7 @@ project "RayTracing"
 
     filter { "toolset:gcc* or toolset:clang*" }
         enablewarnings {
+            "pedantic",
             "cast-align",
             "cast-qual",
             "ctor-dtor-privacy",
