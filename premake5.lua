@@ -31,6 +31,7 @@ filter { "configurations:Debug" }
     symbols "on"
 filter { "configurations:Release" }
     runtime "Release"
+    symbols "off"
     optimize "Speed"
 
 filter {}
@@ -40,6 +41,7 @@ flags {
     "MultiProcessorCompile"
 }
 staticruntime "on"
+removeunreferencedcodedata "on"
 
 include "RayTracing"
 include "Dependencies/SFML"

@@ -21,10 +21,10 @@ public:
 	sf::Vector2f m_Origin, m_Intersection;
 	Type m_Type = Type::None;
 
-	Ray() = default;
-	Ray(const sf::Vector2f& origin) : m_Origin(origin) {}
+	inline Ray() {}
+	inline Ray(const sf::Vector2f& origin) : m_Origin(origin) {}
 
-	void Draw(sf::RenderWindow& window)
+	inline void Draw(sf::RenderWindow& window) const
 	{
 		if (m_Type == Type::Light)
 		{
@@ -46,15 +46,15 @@ public:
 		}
 	}
 };
-const sf::Color Ray::s_LightColor = sf::Color(255, 255, 102);
-const sf::Color Ray::s_ShadowColor = sf::Color(70, 70, 70);
+const inline sf::Color Ray::s_LightColor = sf::Color(255, 255, 102);
+const inline sf::Color Ray::s_ShadowColor = sf::Color(70, 70, 70);
 
 
 struct RayPair
 {
 public:
 	Ray light, shadow;
-	RayPair(const sf::Vector2f& origin) : light(origin) {}
+	inline RayPair(const sf::Vector2f& origin) : light(origin) {}
 };
 
 
@@ -66,7 +66,7 @@ private:
 	float m_YPos;
 	std::string m_Text;
 private:
-	void InitObject(const sf::Font& font)
+	inline void InitObject(const sf::Font& font)
 	{
 		setFont(font);
 		setCharacterSize(20);
@@ -75,7 +75,7 @@ private:
 		setPosition(m_YPos);
 	}
 
-	void UpdatePosition()
+	inline void UpdatePosition()
 	{
 		size_t textLength = getString().getSize();
 		if (textLength != m_Length)
@@ -85,12 +85,9 @@ private:
 		}
 	}
 public:
-	Text() : m_Length(0), m_WindowXSize(0.f), m_YPos(0.f) {}
-	Text(const sf::Font& font, unsigned int windowXSize, float y, const std::string& text)
-		: m_Length(text.size()), m_WindowXSize(static_cast<float>(windowXSize)), m_YPos(y), m_Text(text) 
-		{ InitObject(font); }
+	inline Text() : m_Length(0), m_WindowXSize(0.f), m_YPos(0.f) {}
 
-	void Init(const sf::Font& font, unsigned int windowXSize, float y, const std::string& text)
+	inline void Init(const sf::Font& font, unsigned int windowXSize, float y, const std::string& text)
 	{
 		m_Length = text.size();
 		m_WindowXSize = static_cast<float>(windowXSize);
@@ -99,16 +96,16 @@ public:
 		InitObject(font); 
 	}
 
-	void setPosition(float y)
+	inline void setPosition(float y)
 	{
 		sf::FloatRect rect = getLocalBounds();
 		sf::Text::setPosition(m_WindowXSize - rect.width - 20.f, y);
 	}
 
-	void SetWindowXSize(unsigned int windowXSize) { m_WindowXSize = static_cast<float>(windowXSize); m_Length += 1; UpdatePosition(); }
+	inline void SetWindowXSize(unsigned int windowXSize) { m_WindowXSize = static_cast<float>(windowXSize); m_Length += 1; UpdatePosition(); }
 	
-	void Update(size_t validRays) { Update(std::to_string(validRays)); }
-	void Update(const std::string& str)
+	inline void Update(size_t validRays) { Update(std::to_string(validRays)); }
+	inline void Update(const std::string& str)
 	{
 		setString(m_Text + str);
 		UpdatePosition();
@@ -132,6 +129,7 @@ private: // for generating texts
 	float m_YPos, m_YOffset;
 	size_t m_GeneratedTexts;
 	std::array<Text, 9> m_Texts;
+	sf::RenderWindow& m_Window;
 
 	const std::string onStr = "On";
 	const std::string offStr = "Off";
@@ -148,8 +146,8 @@ public:
 	TextProperties<bool> whiteTextColor;
 	TextProperties<std::pair<unsigned int, std::string>> fpsLimit;
 public:
-	DisplayTexts(unsigned int windowXSize, float yPos, float yOffset)
-		: m_WindowSizeX(windowXSize), m_YPos(yPos), m_YOffset(yOffset), m_GeneratedTexts(0)
+	inline DisplayTexts(unsigned int windowXSize, float yPos, float yOffset, sf::RenderWindow& window)
+		: m_WindowSizeX(windowXSize), m_YPos(yPos), m_YOffset(yOffset), m_GeneratedTexts(0), m_Window(window)
 	{
 		m_Font.loadFromMemory(sg_RawArialData, sg_RawArialDataRelativeSize);
 
@@ -172,13 +170,13 @@ public:
 		fpsLimit.value = std::make_pair(60, "60");
 	}
 
-	void DrawTexts(sf::RenderWindow& window) const
+	inline void DrawTexts() const
 	{
 		for (size_t i = 0; i < m_GeneratedTexts; ++i)
-			window.draw(m_Texts[i]);
+			m_Window.draw(m_Texts[i]);
 	}
 
-	size_t GenerateText(const std::string& text)
+	inline size_t GenerateText(const std::string& text)
 	{
 		m_Texts[m_GeneratedTexts].Init(m_Font, m_WindowSizeX, m_YPos, text);
 		++m_GeneratedTexts;
@@ -186,20 +184,20 @@ public:
 		return m_GeneratedTexts - 1;
 	}
 
-	void UpdateWindowSizeX(unsigned int windowXSize)
+	inline void UpdateWindowSizeX(unsigned int windowXSize)
 	{
 		m_WindowSizeX = windowXSize;
 		for (size_t i = 0; i < m_GeneratedTexts; ++i)
 			m_Texts[i].SetWindowXSize(windowXSize);
 	}
 
-	void SetFillColor(const sf::Color& color)
+	inline void SetFillColor(const sf::Color& color)
 	{
 		for (size_t i = 0; i < m_GeneratedTexts; ++i)
 			m_Texts[i].setFillColor(color);
 	}
 
-	void UpdateText(size_t textId, const std::string& strTrue, const std::string& strFalse, bool decider)
+	inline void UpdateText(size_t textId, const std::string& strTrue, const std::string& strFalse, bool decider)
 	{
 		if (decider)
 			m_Texts[textId].Update(strTrue);
@@ -207,12 +205,12 @@ public:
 			m_Texts[textId].Update(strFalse);
 	}
 
-	void UpdateText(TextProperties<size_t>& text)
+	inline void UpdateText(TextProperties<size_t>& text)
 	{
 		m_Texts[text.textId].Update(text.value);
 	}
 
-	void Update()
+	inline void Update()
 	{
 		rays.value = lightRays.value + shadowRays.value;
 		UpdateText(rays);
@@ -234,9 +232,9 @@ struct LightSource : public sf::CircleShape
 {
 public:
 	sf::Vector2f m_Direction, m_Origin;
-	LightSource(float radius, size_t pointCount) : sf::CircleShape(radius, pointCount) {}
+	inline LightSource(float radius, size_t pointCount) : sf::CircleShape(radius, pointCount) {}
 
-	void setPosition(float x, float y)
+	inline void setPosition(float x, float y)
 	{
 		sf::CircleShape::setPosition(x, y);
 		m_Origin = { x + getRadius(), y + getRadius() };
@@ -244,8 +242,34 @@ public:
 };
 
 
-void HandleInput(sf::RenderWindow& window, DisplayTexts& texts, sf::CircleShape& circle, LightSource& lightSource, bool& circleOrLightMoved)
+
+struct InputHandler
 {
+public:
+	sf::RenderWindow& window;
+	DisplayTexts& texts;
+	sf::CircleShape& circle;
+	LightSource& lightSource;
+	bool circleOrLightMoved;
+
+	inline InputHandler(sf::RenderWindow& windowr, DisplayTexts& textsr, sf::CircleShape& circler, LightSource& lightSourcer)
+		: window(windowr), texts(textsr), circle(circler), lightSource(lightSourcer), circleOrLightMoved(true) {}
+};
+
+
+inline void HandleInput(InputHandler& ih);
+inline void SetProperValues(Ray& light, Ray& shadow, const sf::Vector2f& origin, const sf::Vector2f& direction, float t1, float t2);
+inline RayPair CalculateRays(const sf::Vector2f& origin, const sf::Vector2f& direction, float radius, const sf::Vector2f& circlePos);
+
+
+inline void HandleInput(InputHandler& ih)
+{
+	sf::RenderWindow& window = ih.window;
+	DisplayTexts& texts = ih.texts;
+	sf::CircleShape& circle = ih.circle;
+	LightSource& lightSource = ih.lightSource;
+	bool& circleOrLightMoved = ih.circleOrLightMoved;
+
 	sf::Event event;
 	while (window.pollEvent(event))
 	{
@@ -356,7 +380,7 @@ void HandleInput(sf::RenderWindow& window, DisplayTexts& texts, sf::CircleShape&
 }
 
 
-void SetProperValues(Ray& light, Ray& shadow, const sf::Vector2f& origin, const sf::Vector2f& direction, float t1, float t2)
+inline void SetProperValues(Ray& light, Ray& shadow, const sf::Vector2f& origin, const sf::Vector2f& direction, float t1, float t2)
 {
 	const sf::Vector2f point1 = origin + direction * t1;
 	const sf::Vector2f point2 = origin + direction * t2;
@@ -382,7 +406,7 @@ void SetProperValues(Ray& light, Ray& shadow, const sf::Vector2f& origin, const 
 }
 
 
-RayPair CalculateRays(const sf::Vector2f& origin, const sf::Vector2f& direction, float radius, const sf::Vector2f& circlePos)
+inline RayPair CalculateRays(const sf::Vector2f& origin, const sf::Vector2f& direction, float radius, const sf::Vector2f& circlePos)
 {
 	RayPair rays(origin);
 	
@@ -397,7 +421,7 @@ RayPair CalculateRays(const sf::Vector2f& origin, const sf::Vector2f& direction,
 	const float denominator = 2.f * a;
 	if (discriminant > 0)
 	{
-		discriminant = sqrt(discriminant);
+		discriminant = sqrtf(discriminant);
 		const float t1 = (-b + discriminant) / denominator;
 		const float t2 = (-b - discriminant) / denominator;
 		SetProperValues(rays.light, rays.shadow, origin, direction, t1, t2);
@@ -420,7 +444,7 @@ int main()
 {
 	sf::RenderWindow window(sf::VideoMode(1000, 750), "Playing with rays");
 
-	DisplayTexts texts(window.getSize().x, 0.f, 30.f);
+	DisplayTexts texts(window.getSize().x, 0.f, 30.f, window);
 	window.setFramerateLimit(texts.fpsLimit.value.first);
 
 	LightSource lightSoure(20.f, 50);
@@ -432,6 +456,8 @@ int main()
 	circle.setFillColor(sf::Color::White);
 	texts.radius.value = static_cast<size_t>(circle.getRadius());
 
+	InputHandler ih(window, texts, circle, lightSoure);
+
 	constexpr float YDir = 0.f;
 	constexpr float XDir = 1000.f;
 	constexpr float XOff = 0.228f; // 0.225f
@@ -440,28 +466,28 @@ int main()
 	float YOffset = YOff;
 	float XOffset = XOff;
 	lightSoure.m_Direction = sf::Vector2f(XDir, YDir);
+	constexpr size_t numRays = 4450;
 	std::vector<Ray> rays;
-	rays.reserve(4450 * 2);
+	rays.reserve(numRays * 2);
 
 	const sf::Clock clock;
 	sf::Time previousTime = clock.getElapsedTime();
 	sf::Time currentTime;
 
-	bool circleOrLightMoved = true;
 	size_t lastLightRaysValue = 0;
 	size_t lastShadowRaysValue = 0;
 	
 	while (window.isOpen())
 	{
-		HandleInput(window, texts, circle, lightSoure, circleOrLightMoved);
+		HandleInput(ih);
 
 		window.clear(sf::Color(105, 105, 105, 255));
 		window.draw(lightSoure);
 		window.draw(circle);
 
-		if ((texts.light.value || texts.shadow.value) && circleOrLightMoved)
+		if ((texts.light.value || texts.shadow.value) && ih.circleOrLightMoved)
 		{
-			circleOrLightMoved = false;
+			ih.circleOrLightMoved = false;
 			rays.clear();
 			const sf::Vector2f circleRealPosition = circle.getPosition();
 			const sf::Vector2f circlePosition(circleRealPosition.x + static_cast<float>(texts.radius.value), circleRealPosition.y + static_cast<float>(texts.radius.value));
@@ -476,7 +502,7 @@ int main()
 			{
 				bool found = false;
 				size_t foundIndex = 0;
-				for (size_t i = 0; i < 4450; ++i)
+				for (size_t i = 0; i < numRays; ++i)
 				{
 					if ((lightSoure.m_Direction.x < 0.f && lightSoure.m_Direction.y > 750.f)
 						|| (lightSoure.m_Direction.x < 0.f && lightSoure.m_Direction.y < 0.f))
@@ -542,7 +568,7 @@ int main()
 		}
 		
 		texts.Update();
-		texts.DrawTexts(window);
+		texts.DrawTexts();
 		window.display();
 
 		currentTime = clock.getElapsedTime();
