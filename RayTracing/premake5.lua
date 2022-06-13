@@ -121,6 +121,8 @@ project "RayTracing"
 
     filter { "configurations:Debug" }
         kind "ConsoleApp"
+        floatingpoint "default"
 
     filter { "configurations:Release" }
         kind "WindowedApp"
+        floatingpoint "fast"
