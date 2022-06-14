@@ -5,5 +5,7 @@ BIN/
 Makefile
 makefile
 *.user
+*.sln
+*.vcxproj
 *.vcxproj.user
 *.vcxproj.filters
