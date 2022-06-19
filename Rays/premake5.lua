@@ -1,4 +1,4 @@
-project "RayTracing"
+project "Rays"
     language "C++"
     cppdialect "C++17"
     staticruntime "on"

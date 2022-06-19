@@ -1,10 +1,10 @@
-workspace "RayTracing"
+workspace "PlayingWithRays"
     platforms { "x64", "x86" }
     configurations {
         "Debug",
         "Release"
     }
-    startproject "RayTracing"
+    startproject "Rays"
 
 outputdir = "/BIN/%{cfg.buildcfg}/%{cfg.architecture}/"
 -- get current working directory
@@ -43,5 +43,5 @@ flags {
 staticruntime "on"
 removeunreferencedcodedata "on"
 
-include "RayTracing"
+include "Rays"
 include "Dependencies/SFML"
