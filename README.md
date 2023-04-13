@@ -1,4 +1,4 @@
-# PlayingWithRays
+# Rays2D
 It's a simple 2D circle ray tracing simulation.  
 If you're interested in the math that goes on behind the scenes take a look at the PDF I've put in `Rays/src`.
 
