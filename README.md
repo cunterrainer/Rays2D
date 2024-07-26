@@ -6,7 +6,7 @@ If you're interested in the math that goes on behind the scenes take a look at t
 If you're on windows you can simply use the provided binary that can be found in the release section.  
 Build it yourself:
 ```
-git clone https://github.com/pyvyx/PlayingWithRays.git
+git clone https://github.com/cunterrainer/PlayingWithRays.git
 ```
 ```
 cd PlayingWithRays
